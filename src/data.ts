@@ -1,0 +1,5 @@
+import type {City} from './types';
+export const citiesBase:City[]=[['基隆市','北部',9,6,240,62],['臺北市','北部',8,5,180,35],['新北市','北部',10,7,310,78],['桃園市','北部',10,7,290,74],['新竹市','北部',9,6,220,55],['新竹縣','北部',10,7,330,80],['苗栗縣','中部',9,6,260,63],['臺中市','中部',8,5,150,28],['彰化縣','中部',8,5,160,30],['南投縣','中部',7,5,180,24],['雲林縣','中部',8,5,200,34],['嘉義市','南部',8,5,190,31],['嘉義縣','南部',9,6,260,57],['臺南市','南部',9,6,230,49],['高雄市','南部',10,7,320,76],['屏東縣','南部',11,8,380,88],['宜蘭縣','東部',11,8,420,91],['花蓮縣','東部',10,7,340,79],['臺東縣','東部',11,8,390,86],['澎湖縣','離島',10,7,270,71],['金門縣','離島',7,4,80,12],['連江縣','離島',9,6,210,48]].map(([name,region,gust,wind,rain,probability])=>({name:String(name),region:String(region),gust:Number(gust),wind:Number(wind),rain:Number(rain),probability:Number(probability),status:'pending' as const}));
+export const regions=['全部地區','北部','中部','南部','東部','離島'];
+export const scenarios=['強烈颱風示範情境','平靜天氣示範情境'];
+export function scenarioData(s:string):City[]{return citiesBase.map((c,i)=>s===scenarios[1]?({...c,gust:3+i%3,wind:1+i%3,rain:5+(i*7)%35,probability:Math.max(2,5+(i*3)%18)}):({...c,status:'pending'}));}
