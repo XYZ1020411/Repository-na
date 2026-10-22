@@ -1,0 +1,8 @@
+name = "holiday-predictor"
+main = "worker/index.ts"
+compatibility_date = "2026-10-22"
+
+[assets]
+directory = "./dist"
+binding = "ASSETS"
+not_found_handling = "single-page-application"
