@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Bell, Cloud, CloudRain, ExternalLink, RefreshCw, Search, ShieldAlert, Wind } from 'lucide-react';
+import { Bell, Cloud, CloudRain, ExternalLink, MapPin, MessageCircle, RefreshCw, Search, ShieldAlert, Wind } from 'lucide-react';
 import { citiesBase, regions, scenarios, scenarioData } from './data';
 import type { City } from './types';
 
@@ -25,7 +25,6 @@ type OfficialNotice = {
   status: 'normal' | 'holiday' | 'pending';
 };
 
-const ADMIN_PASSWORD = 'holiday-admin';
 const STORAGE_KEY = 'holiday-admin-enabled';
 const ANNOUNCEMENT_KEY = 'holiday-admin-notice';
 
@@ -74,6 +73,14 @@ export default function App() {
     return localStorage.getItem(ANNOUNCEMENT_KEY) ?? '不提供測試通報';
   });
   const [lastPushAt, setLastPushAt] = useState<string | null>(null);
+  const [typhoonItems, setTyphoonItems] = useState<Array<{name:string;latitude:number;longitude:number;detail?:Array<{key:string;value:unknown}>}>>([]);
+  const [typhoonStatus, setTyphoonStatus] = useState('正在取得中央氣象署颱風資料…');
+  const [typhoonUpdatedAt, setTyphoonUpdatedAt] = useState<string | null>(null);
+  const [userLocation, setUserLocation] = useState<{latitude:number;longitude:number;displayName:string;source?:string}|null>(null);
+  const [locationStatus, setLocationStatus] = useState('尚未取得定位權限');
+  const [lineAccountUrl, setLineAccountUrl] = useState('');
+  const [lineStatus, setLineStatus] = useState('尚未檢查 LINE 官方帳號設定');
+  const [lineMessage, setLineMessage] = useState('颱風與停班停課公告有更新，請查看官方資訊。');
 
   const currentCityData = useMemo(() => scenarioData(scenario), [scenario]);
 
@@ -173,7 +180,7 @@ export default function App() {
   }, [adminAnnouncement]);
 
   useEffect(() => {
-    if (!adminMode || !pushEnabled) return;
+    if (!pushEnabled) return;
 
     const intervalId = window.setInterval(async () => {
       try {
@@ -230,20 +237,74 @@ export default function App() {
     }
   };
 
-  const loginAsAdmin = () => {
-    if (adminPassword === ADMIN_PASSWORD) {
+  const loginAsAdmin = async () => {
+    try {
+      const response = await fetch('/api/admin/login', {method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({password:adminPassword})});
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.message || '管理員登入失敗');
       setAdminMode(true);
-      setPushStatus('管理員模式已啟用');
-      return;
-    }
-
-    if (adminPassword.trim().length >= 4) {
+      setPushStatus('管理員已登入；敏感操作仍由 Worker 驗證');
+    } catch (error) {
       setAdminMode(false);
-      setPushStatus('管理員密碼錯誤');
+      setPushStatus(error instanceof Error ? error.message : '管理員登入失敗');
+    }
+  };
+
+  const locateMe = () => {
+    if (!('geolocation' in navigator)) { setLocationStatus('此瀏覽器不支援定位'); return; }
+    setLocationStatus('正在取得定位…');
+    navigator.geolocation.getCurrentPosition(async (position) => {
+      const latitude=position.coords.latitude, longitude=position.coords.longitude;
+      try {
+        const response=await fetch('/api/location?lat='+encodeURIComponent(latitude)+'&lon='+encodeURIComponent(longitude));
+        const data=await response.json();
+        setUserLocation({latitude,longitude,displayName:data.displayName||'已取得目前座標',source:data.source});
+        setLocationStatus('定位成功');
+      } catch {
+        setUserLocation({latitude,longitude,displayName:'已取得座標，區域名稱暫時無法辨識'});
+        setLocationStatus('已定位，但區域名稱無法取得');
+      }
+    }, (error) => setLocationStatus(error.code===1?'定位權限被拒絕，請在瀏覽器設定允許定位':'無法取得定位，請確認 GPS 已開啟'), {enableHighAccuracy:true,timeout:12000,maximumAge:60000});
+  };
+
+  const loadTyphoon = async () => {
+    try {
+      const response=await fetch('/api/typhoon');
+      const data=await response.json();
+      setTyphoonItems(Array.isArray(data.items)?data.items:[]);
+      setTyphoonStatus(data.message || (data.items?.length?'已取得颱風位置':'目前沒有可辨識的颱風位置'));
+      setTyphoonUpdatedAt(data.fetchedAt||null);
+    } catch {
+      setTyphoonItems([]);
+      setTyphoonStatus('目前無法連線中央氣象署颱風資料，請查看官方來源');
+    }
+  };
+
+  const sendLinePush = async () => {
+    try {
+      const response=await fetch('/api/line/push',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({adminPassword,message:lineMessage})});
+      const data=await response.json();
+      if(!response.ok||!data.ok) throw new Error(data.message||'LINE 推播失敗');
+      setLineStatus(data.message||'LINE 推播已送出');
+    } catch(error) {
+      setLineStatus(error instanceof Error?error.message:'LINE 推播失敗');
     }
   };
 
   const latestOfficialNotice = notices[0] ?? fallbackNotices[0];
+
+  useEffect(() => {
+    void loadTyphoon();
+    const timer=window.setInterval(()=>void loadTyphoon(),5*60*1000);
+    return ()=>window.clearInterval(timer);
+  }, []);
+
+  useEffect(() => {
+    fetch('/api/line/status').then(r=>r.json()).then(data=>{
+      setLineAccountUrl(data.accountUrl||'');
+      setLineStatus(data.configured?'LINE Messaging API 已設定':'尚未設定 LINE Messaging API；帳號名稱與 Logo 尚未設定');
+    }).catch(()=>setLineStatus('目前無法檢查 LINE 設定'));
+  }, []);
 
 
   return (
