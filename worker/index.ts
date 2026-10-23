@@ -10,13 +10,16 @@ const CWA_URL = 'https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001';
 const CITY_NAMES = ['基隆市','臺北市','新北市','桃園市','新竹市','新竹縣','苗栗縣','臺中市','彰化縣','南投縣','雲林縣','嘉義市','嘉義縣','臺南市','高雄市','屏東縣','宜蘭縣','花蓮縣','臺東縣','澎湖縣','金門縣','連江縣'];
 const esc = (s: string) => s.replaceAll('&nbsp;',' ').replaceAll('&amp;','&').replaceAll('&lt;','<').replaceAll('&gt;','>').replaceAll('&quot;','"').replaceAll('&#39;','\'');
 function plainText(html: string): string {
-  return html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ')
-    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ')
-    .replace(/<\/(?:tr|td|th|p|div|li|h[1-6])\s*>/gi,'\n')
-    .replace(/<[^>]+>/g,' ')
-    .replace(/&nbsp;|&#160;/gi,' ')
-    .replace(/&amp;/gi,'&').replace(/&lt;/gi,'<').replace(/&gt;/gi,'>')
-    .replace(/\s+/g,' ').replace(/\s*\n\s*/g,'\n').trim();
+  return html
+    .replace(/<script\\b[^>]*>[\\s\\S]*?<\\/script>/gi, ' ')
+    .replace(/<style\\b[^>]*>[\\s\\S]*?<\\/style>/gi, ' ')
+    .replace(/<\\/(?:tr|td|th|p|div|li|h[1-6])\\s*>/gi, '\\n')
+    .replace(/<[^>]+>/g, ' ')
+    .replace(/&nbsp;|&#160;/gi, ' ')
+    .replace(/&amp;/gi, '&').replace(/&lt;/gi, '<').replace(/&gt;/gi, '>')
+    .replace(/[ \\t]+/g, ' ')
+    .replace(/ *\\n */g, '\\n')
+    .trim();
 }
 async function fetchOfficialSuspension() {
   const response = await fetch(DGPA_URL, { headers: { 'User-Agent': 'HolidayPredictor/1.0 (official announcement reader)', 'Accept': 'text/html' }, cf: { cacheTtl: 180, cacheEverything: true } });
