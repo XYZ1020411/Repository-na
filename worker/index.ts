@@ -128,6 +128,7 @@ export default {
     if (url.pathname === '/api/health') return Response.json({ok:true,service:'HolidayPredictor Worker',officialWeatherConfigured:Boolean(env.CWA_API_KEY),officialSuspensionSource:DGPA_URL});
     if (url.pathname === '/api/weather') return weather(env);
     if (url.pathname === '/api/typhoon') return typhoon(env);
+    if (url.pathname === '/api/admin/login' && request.method === 'POST') { let body:any={}; try{body=await request.json();}catch{}; if(!env.ADMIN_PASSWORD) return Response.json({ok:false,message:'尚未在 Cloudflare 設定 ADMIN_PASSWORD'},{status:503}); return body.password===env.ADMIN_PASSWORD ? Response.json({ok:true}) : Response.json({ok:false,message:'管理員密碼錯誤'},{status:401}); }
     if (url.pathname === '/api/line/status') return Response.json({configured:Boolean(env.LINE_CHANNEL_ACCESS_TOKEN&&env.LINE_TARGET_USER_ID),accountUrl:env.LINE_OA_URL||null,displayName:'LINE 官方帳號（名稱尚未設定）',logoConfigured:false});
     if (url.pathname === '/api/line/push' && request.method === 'POST') return linePush(request,env);
     if (url.pathname === '/api/location' && request.method === 'GET') {
