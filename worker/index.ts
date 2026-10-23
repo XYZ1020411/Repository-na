@@ -1,12 +1,18 @@
 interface Env {
   ASSETS: { fetch(request: Request): Promise<Response> };
   CWA_API_KEY?: string;
+  ADMIN_PASSWORD?: string;
+  LINE_CHANNEL_ACCESS_TOKEN?: string;
+  LINE_TARGET_USER_ID?: string;
+  LINE_OA_URL?: string;
 }
 interface CwaElement { elementName: string; time?: Array<{ startTime?: string; parameter?: { parameterName?: string } }> }
 interface CwaLocation { locationName: string; weatherElement?: CwaElement[] }
 interface CwaResponse { records?: { location?: CwaLocation[] } }
 const DGPA_URL = 'https://www.dgpa.gov.tw/typh/daily/nds.html';
 const CWA_URL = 'https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001';
+const TYPHOON_URL = 'https://opendata.cwa.gov.tw/api/v1/rest/datastore/W-C0034-005';
+const LINE_PUSH_URL = 'https://api.line.me/v2/bot/message/push';
 const CITY_NAMES = ['基隆市','臺北市','新北市','桃園市','新竹市','新竹縣','苗栗縣','臺中市','彰化縣','南投縣','雲林縣','嘉義市','嘉義縣','臺南市','高雄市','屏東縣','宜蘭縣','花蓮縣','臺東縣','澎湖縣','金門縣','連江縣'];
 const esc = (s: string) => s.replaceAll('&nbsp;',' ').replaceAll('&amp;','&').replaceAll('&lt;','<').replaceAll('&gt;','>').replaceAll('&quot;','"').replaceAll('&#39;','\'');
 function plainText(html: string): string {
@@ -67,6 +73,51 @@ async function weather(env: Env) {
     return Response.json({source:'中央氣象署開放資料平台',dataset:'F-C0032-001',fetchedAt:new Date().toISOString(),forecasts},{headers:{'Cache-Control':'public, max-age=300, s-maxage=600'}});
   } catch { return Response.json({error:'CWA_FETCH_FAILED',message:'連線中央氣象署失敗，請稍後再試。'},{status:502}); }
 }
+
+async function typhoon(env: Env) {
+  if (!env.CWA_API_KEY) return Response.json({status:'pending',message:'尚未設定中央氣象署 API 金鑰',sourceUrl:'https://www.cwa.gov.tw/V8/C/P/Typhoon/TY_NEWS.html',fetchedAt:new Date().toISOString(),items:[]},{status:503});
+  const url=new URL(TYPHOON_URL); url.searchParams.set('Authorization',env.CWA_API_KEY); url.searchParams.set('format','JSON');
+  try {
+    const response=await fetch(url,{headers:{accept:'application/json'},cf:{cacheTtl:300,cacheEverything:true}});
+    if(!response.ok) return Response.json({status:'pending',message:'中央氣象署颱風資料暫時無法取得',sourceUrl:'https://www.cwa.gov.tw/V8/C/P/Typhoon/TY_NEWS.html',fetchedAt:new Date().toISOString(),items:[]},{status:502});
+    const payload=await response.json() as any;
+    const records=payload?.records;
+    const items:any[]=[];
+    const seen=new Set<string>();
+    const walk=(node:any,path='')=>{
+      if(!node||typeof node!=='object') return;
+      if(Array.isArray(node)){for(const value of node) walk(value,path);return;}
+      const entries=Object.entries(node);
+      const pick=(keys:string[])=>entries.find(([k,v])=>keys.some(key=>key.test(k)) && (typeof v==='number'||typeof v==='string'))?.[1];
+      const lat=pick([/latitude/i,/lat$/i,/緯度/]); const lon=pick([/longitude/i,/lon$/i,/lng/i,/經度/]);
+      if(lat!==undefined&&lon!==undefined){
+        const latitude=Number(String(lat).replace(/[°Nn]/g,'')); const longitude=Number(String(lon).replace(/[°Ee]/g,''));
+        if(Number.isFinite(latitude)&&Number.isFinite(longitude)&&Math.abs(latitude)<=90&&Math.abs(longitude)<=180){
+          const name=String(pick([/typhoonName/i,/stormName/i,/name/i,/颱風名稱/])??'颱風中心');
+          const key=latitude.toFixed(3)+','+longitude.toFixed(3)+','+name;
+          if(!seen.has(key)){seen.add(key);items.push({name,latitude,longitude,detail:entries.filter(([k,v])=>/time|date|intensity|status|強度|時間/i.test(k)&&typeof v!=='object').slice(0,8).map(([key,value])=>({key,value}))});}
+        }
+      }
+      for(const [key,value] of entries) walk(value,path+'/'+key);
+    };
+    walk(records);
+    return Response.json({status:items.length?'available':'pending',source:'中央氣象署開放資料平台',dataset:'W-C0034-005',sourceUrl:'https://www.cwa.gov.tw/V8/C/P/Typhoon/TY_NEWS.html',fetchedAt:new Date().toISOString(),message:items.length?'已取得颱風位置資料':'目前沒有可辨識的颱風座標；可能目前沒有颱風警報，或官方資料格式已更新',items:items.slice(0,30)},{headers:{'Cache-Control':'public, max-age=180, s-maxage=300'}});
+  } catch {
+    return Response.json({status:'pending',message:'連線中央氣象署颱風資料失敗',sourceUrl:'https://www.cwa.gov.tw/V8/C/P/Typhoon/TY_NEWS.html',fetchedAt:new Date().toISOString(),items:[]},{status:502,headers:{'Cache-Control':'no-store'}});
+  }
+}
+async function linePush(request:Request,env:Env) {
+  if(!env.ADMIN_PASSWORD || !env.LINE_CHANNEL_ACCESS_TOKEN || !env.LINE_TARGET_USER_ID) return Response.json({ok:false,message:'LINE 推播尚未設定；請在 Cloudflare Worker Secrets 設定 ADMIN_PASSWORD、LINE_CHANNEL_ACCESS_TOKEN、LINE_TARGET_USER_ID。'},{status:503});
+  let body:any={}; try{body=await request.json();}catch{}
+  if(body.adminPassword!==env.ADMIN_PASSWORD) return Response.json({ok:false,message:'管理員驗證失敗'},{status:401});
+  const message=String(body.message??'官方公告有更新，請查看 HolidayPredictor。').slice(0,1000);
+  try{
+    const response=await fetch(LINE_PUSH_URL,{method:'POST',headers:{authorization:'Bearer '+env.LINE_CHANNEL_ACCESS_TOKEN,'content-type':'application/json'},body:JSON.stringify({to:env.LINE_TARGET_USER_ID,messages:[{type:'text',text:message}]})});
+    if(!response.ok) return Response.json({ok:false,message:'LINE API 推播失敗',status:response.status},{status:502});
+    return Response.json({ok:true,message:'LINE 推播已送出'});
+  }catch{return Response.json({ok:false,message:'無法連線 LINE API'},{status:502});}
+}
+
 function suspensionPayload(data: Awaited<ReturnType<typeof fetchOfficialSuspension>>, city?: string) {
   const rows = city ? data.rows.filter(r => r.city === city || r.city.replaceAll('臺','台') === city.replaceAll('臺','台')) : data.rows;
   return { source:data.source, sourceUrl:data.sourceUrl, fetchedAt:data.fetchedAt, updatedAt:data.updatedAt, bulletinDate:data.bulletinDate, rows };
@@ -76,6 +127,14 @@ export default {
     const url = new URL(request.url);
     if (url.pathname === '/api/health') return Response.json({ok:true,service:'HolidayPredictor Worker',officialWeatherConfigured:Boolean(env.CWA_API_KEY),officialSuspensionSource:DGPA_URL});
     if (url.pathname === '/api/weather') return weather(env);
+    if (url.pathname === '/api/typhoon') return typhoon(env);
+    if (url.pathname === '/api/line/status') return Response.json({configured:Boolean(env.LINE_CHANNEL_ACCESS_TOKEN&&env.LINE_TARGET_USER_ID),accountUrl:env.LINE_OA_URL||null,displayName:'LINE 官方帳號（名稱尚未設定）',logoConfigured:false});
+    if (url.pathname === '/api/line/push' && request.method === 'POST') return linePush(request,env);
+    if (url.pathname === '/api/location' && request.method === 'GET') {
+      const lat=Number(url.searchParams.get('lat')); const lon=Number(url.searchParams.get('lon'));
+      if(!Number.isFinite(lat)||!Number.isFinite(lon)||Math.abs(lat)>90||Math.abs(lon)>180) return Response.json({error:'INVALID_COORDINATES'},{status:400});
+      try { const geo=await fetch('https://nominatim.openstreetmap.org/reverse?format=jsonv2&lat='+lat+'&lon='+lon+'&zoom=10&accept-language=zh-TW',{headers:{'User-Agent':'HolidayPredictor/1.0 contact: support@holidaypredictor.invalid'},cf:{cacheTtl:3600,cacheEverything:true}}); if(!geo.ok) throw new Error('reverse geocode failed'); const data:any=await geo.json(); return Response.json({latitude:lat,longitude:lon,displayName:data.display_name||'已取得座標',address:data.address||{},source:'OpenStreetMap Nominatim'},{headers:{'Cache-Control':'public, max-age=1800'}}); } catch { return Response.json({latitude:lat,longitude:lon,displayName:'已取得座標，無法反查區域名稱',sourceUrl:'https://www.openstreetmap.org/'},{status:200}); }
+    }
     if (url.pathname === '/api/suspension' || url.pathname === '/api/announcements') {
       try {
         const data = await fetchOfficialSuspension();
