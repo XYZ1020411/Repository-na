@@ -1,583 +1,93 @@
-import { useEffect, useMemo, useState } from 'react';
-import { Bell, Cloud, CloudRain, ExternalLink, RefreshCw, Search, ShieldAlert, Wind } from 'lucide-react';
-import { citiesBase, regions, scenarios, scenarioData } from './data';
-import type { City } from './types';
-
-type OfficialForecast = {
-  name: string;
-  available: boolean;
-  weather: string | null;
-  rainProbability: number | null;
-  minTemperature: number | null;
-  maxTemperature: number | null;
-  comfort: string | null;
-  forecastTime: string | null;
-};
-
-type OfficialNotice = {
-  id: string;
-  title: string;
-  summary: string;
-  source: string;
-  url: string;
-  publishedAt: string;
-  category: '停班停課' | '天氣' | '行政';
-  status: 'normal' | 'holiday' | 'pending';
-};
-
-type SuspensionInfo = {
-  city: string;
-  date: string;
-  isSuspended: boolean;
-  note: string;
-  updatedAt: string;
-};
-
-const ADMIN_PASSWORD = 'holiday-admin';
-const STORAGE_KEY = 'holiday-admin-enabled';
-const ANNOUNCEMENT_KEY = 'holiday-admin-notice';
-
-const fallbackNotices: OfficialNotice[] = [
-  {
-    id: 'f1',
-    title: '官方資料暫無回應，顯示示範公告',
-    summary: '目前正在以示範資料保護頁面正常運作，實際停班停課資料會在 API 回應後自動更新。',
-    source: '示範資料',
-    url: 'https://www.dgpa.gov.tw/',
-    publishedAt: new Date().toISOString(),
-    category: '停班停課',
-    status: 'holiday',
-  },
-];
-
-const statusLabel = (status: City['status']) => {
-  switch (status) {
-    case 'holiday':
-      return '停班停課';
-    case 'normal':
-      return '正常上班';
-    default:
-      return '待確認';
-  }
-};
-
-export default function App() {
-  const [officialForecasts, setOfficialForecasts] = useState<OfficialForecast[]>([]);
-  const [officialStatus, setOfficialStatus] = useState('正在連線中央氣象署…');
-  const [region, setRegion] = useState('全部地區');
-  const [selected, setSelected] = useState('新竹市');
-  const [scenario, setScenario] = useState(scenarios[0]);
-  const [search, setSearch] = useState('');
-  const [adminPassword, setAdminPassword] = useState('');
-  const [adminMode, setAdminMode] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem(STORAGE_KEY) === 'true';
-  });
-  const [pushEnabled, setPushEnabled] = useState(false);
-  const [pushStatus, setPushStatus] = useState('通知未啟用');
-  const [notices, setNotices] = useState<OfficialNotice[]>(fallbackNotices);
-  const [adminAnnouncement, setAdminAnnouncement] = useState<string>(() => {
-    if (typeof window === 'undefined') return '不提供測試通報';
-    return localStorage.getItem(ANNOUNCEMENT_KEY) ?? '不提供測試通報';
-  });
-  const [citySuspensions, setCitySuspensions] = useState<Record<string, SuspensionInfo>>({});
-
-  const currentCityData = useMemo(() => scenarioData(scenario), [scenario]);
-
-  const visibleCities = useMemo(() => {
-    const keyword = search.trim();
-    return currentCityData.filter((city) => {
-      const regionOk = region === '全部地區' || city.region === region;
-      const text = `${city.name}${city.region}`.toLowerCase();
-      const searchOk = !keyword || text.includes(keyword.toLowerCase());
-      return regionOk && searchOk;
-    });
-  }, [currentCityData, region, search]);
-
-  const selectedCity = useMemo(() => {
-    return (
-      visibleCities.find((city) => city.name === selected) ??
-      currentCityData.find((city) => city.name === selected) ??
-      visibleCities[0] ??
-      currentCityData[0] ??
-      citiesBase[0]
-    );
-  }, [visibleCities, currentCityData, selected]);
-
-  const selectedSuspension = citySuspensions[selectedCity.name] ?? null;
-  const displayStatus: City['status'] = selectedSuspension
-    ? (selectedSuspension.isSuspended ? 'holiday' : 'normal')
-    : selectedCity.status;
-
-  useEffect(() => {
-    let active = true;
-    const load = async () => {
-      try {
-        const response = await fetch('/api/weather');
-        const data = await response.json();
-        if (!active) return;
-        if (!response.ok) throw new Error(data.message || '官方資料暫時無法取得');
-        setOfficialForecasts(data.forecasts || []);
-        setOfficialStatus(data.source || '中央氣象署');
-      } catch (error) {
-        console.error(error);
-        if (!active) return;
-        setOfficialForecasts([]);
-        setOfficialStatus('官方資料目前無法連線，顯示示範資料');
-      }
-    };
-
-    void load();
-    return () => { active = false; };
-  }, []);
-
-  useEffect(() => {
-    const loadNotices = async () => {
-      try {
-        const response = await fetch('/api/announcements');
-        const data = await response.json();
-        if (!response.ok) throw new Error(data.message || '公告資料取得失敗');
-        const list = Array.isArray(data.notices) && data.notices.length ? data.notices : fallbackNotices;
-        setNotices(list);
-      } catch (error) {
-        console.error(error);
-        setNotices(fallbackNotices);
-      }
-    };
-
-    void loadNotices();
-  }, []);
-
-  useEffect(() => {
-    const loadStatus = async () => {
-      try {
-        const response = await fetch(`/api/suspension?city=${encodeURIComponent(selectedCity.name)}`);
-        const data = await response.json();
-        if (!response.ok) {
-          throw new Error(data.message || '查詢停班停課狀態失敗');
-        }
-        setCitySuspensions((prev) => ({ ...prev, [selectedCity.name]: data }));
-      } catch (error) {
-        console.error(error);
-        setCitySuspensions((prev) => ({
-          ...prev,
-          [selectedCity.name]: {
-            city: selectedCity.name,
-            date: new Date().toISOString().slice(0, 10),
-            isSuspended: false,
-            note: '目前沒有官方停班停課資料，維持示範資料',
-            updatedAt: new Date().toISOString(),
-          },
-        }));
-      }
-    };
-
-    void loadStatus();
-  }, [selectedCity.name]);
-
-  useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch((error) => {
-        console.error('service worker registration failed', error);
-      });
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!('Notification' in window)) {
-      setPushStatus('此瀏覽器不支援背景通知');
-      return;
-    }
-
-    const permission = Notification.permission;
-    const granted = permission === 'granted';
-    setPushEnabled(granted);
-    setPushStatus(granted ? '已啟用背景推播' : permission === 'denied' ? '已拒絕通知' : '通知未啟用');
-  }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(STORAGE_KEY, String(adminMode));
-  }, [adminMode]);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(ANNOUNCEMENT_KEY, adminAnnouncement);
-  }, [adminAnnouncement]);
-
-  const openNotificationPermission = async () => {
-    if (!('Notification' in window)) {
-      setPushStatus('此瀏覽器不支援 Web Notification');
-      return;
-    }
-
-    const permission = await Notification.requestPermission();
-    const granted = permission === 'granted';
-    setPushEnabled(granted);
-    setPushStatus(granted ? '已啟用背景推播' : permission === 'denied' ? '已拒絕通知' : '通知未啟用');
-  };
-
-  const refreshAnnouncement = async () => {
-    try {
-      const response = await fetch('/api/announcements');
-      const data = await response.json();
-      if (!response.ok) throw new Error(data.message || '公告取得失敗');
-      setNotices(Array.isArray(data.notices) && data.notices.length ? data.notices : fallbackNotices);
-    } catch (error) {
-      console.error(error);
-      setNotices(fallbackNotices);
-    }
-  };
-
-  const loginAsAdmin = () => {
-    if (adminPassword === ADMIN_PASSWORD) {
-      setAdminMode(true);
-      setPushStatus('管理員模式已啟用');
-      return;
-    }
-
-    if (adminPassword.trim().length >= 4) {
-      setAdminMode(false);
-      setPushStatus('管理員密碼錯誤');
-    }
-  };
-
-  const latestOfficialNotice = notices[0] ?? fallbackNotices[0];
-
-  return (
-    <div className="min-h-screen bg-slate-950 text-slate-50">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <header className="mb-8 flex flex-col gap-4 rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-slate-950/40 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm uppercase tracking-[0.3em] text-cyan-300">HolidayPredictor</p>
-            <h1 className="mt-2 text-3xl font-bold text-white">台灣停班停課預測與公告整合</h1>
-          </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={refreshAnnouncement}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-cyan-400 hover:text-cyan-300"
-            >
-              <RefreshCw className="h-4 w-4" />
-              更新公告
-            </button>
-            {!adminMode ? (
-              <div className="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-800 px-3 py-2">
-                <ShieldAlert className="h-4 w-4 text-cyan-300" />
-                <input
-                  type="password"
-                  value={adminPassword}
-                  onChange={(event) => setAdminPassword(event.target.value)}
-                  placeholder="管理員密碼"
-                  className="w-28 bg-transparent text-sm text-slate-100 placeholder:text-slate-400 focus:outline-none"
-                />
-                <button onClick={loginAsAdmin} className="rounded-full bg-cyan-500 px-3 py-1 text-xs font-semibold text-slate-950">
-                  登入
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setAdminMode(false)}
-                className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950"
-              >
-                管理員已登入
-              </button>
-            )}
-          </div>
-        </header>
-
-        <div className="grid gap-6 lg:grid-cols-[1.5fr_0.9fr]">
-          <section className="rounded-3xl border border-slate-800 bg-slate-900/75 p-6">
-            <div className="mb-5 flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.25em] text-slate-400">預測資料</p>
-                <h2 className="mt-2 text-2xl font-bold text-white">即時風雨與停班停課分析</h2>
-              </div>
-              <div className="rounded-full border border-cyan-700/40 bg-cyan-500/10 px-3 py-1 text-xs font-medium text-cyan-200">
-                {officialStatus}
-              </div>
-            </div>
-
-            <div className="mb-5 flex flex-wrap gap-2">
-              {regions.map((item) => (
-                <button
-                  key={item}
-                  onClick={() => setRegion(item)}
-                  className={`rounded-full px-3 py-1.5 text-sm transition ${
-                    region === item ? 'bg-cyan-500 text-slate-950' : 'border border-slate-700 bg-slate-800 text-slate-300 hover:border-cyan-500 hover:text-cyan-300'
-                  }`}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-
-            <div className="mb-5 flex flex-wrap gap-2">
-              {scenarios.map((item) => (
-                <button
-                  key={item}
-                  onClick={() => setScenario(item)}
-                  className={`rounded-full px-3 py-1.5 text-sm transition ${
-                    scenario === item ? 'bg-violet-500 text-slate-950' : 'border border-slate-700 bg-slate-800 text-slate-300 hover:border-violet-500 hover:text-violet-300'
-                  }`}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-
-            <div className="mb-6 flex items-center gap-3 rounded-2xl border border-slate-700 bg-slate-800/70 p-3">
-              <Search className="h-4 w-4 text-slate-400" />
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="搜尋縣市或區域"
-                className="w-full bg-transparent text-sm text-slate-100 placeholder:text-slate-400 focus:outline-none"
-              />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {visibleCities.map((item) => {
-                const active = selectedCity?.name === item.name;
-                const suspension = citySuspensions[item.name];
-                const itemStatus = suspension ? (suspension.isSuspended ? 'holiday' : 'normal') : item.status;
-
-                return (
-                  <button
-                    key={item.name}
-                    onClick={() => setSelected(item.name)}
-                    className={`rounded-2xl border p-4 text-left transition ${
-                      active ? 'border-cyan-500 bg-cyan-500/10 shadow-lg shadow-cyan-500/10' : 'border-slate-700 bg-slate-800/60 hover:border-slate-500'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between">
-                      <span className="font-semibold text-white">{item.name}</span>
-                      <span className={`rounded-full px-2 py-0.5 text-[10px] font-bold ${
-                        itemStatus === 'holiday' ? 'bg-rose-500/20 text-rose-200' : itemStatus === 'normal' ? 'bg-emerald-500/20 text-emerald-200' : 'bg-amber-500/20 text-amber-200'
-                      }`}>
-                        {statusLabel(itemStatus)}
-                      </span>
-                    </div>
-                    <div className="mt-3 space-y-2 text-sm text-slate-300">
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-2 text-slate-400"><Wind className="h-4 w-4" /> 風速</span>
-                        <span>{item.wind} m/s</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-2 text-slate-400"><CloudRain className="h-4 w-4" /> 累積雨量</span>
-                        <span>{item.rain} mm</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="flex items-center gap-2 text-slate-400"><Cloud className="h-4 w-4" /> 風險</span>
-                        <span>{item.probability}%</span>
-                      </div>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </section>
-
-          <aside className="space-y-6">
-            <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
-              <p className="text-xs uppercase tracking-[0.25em] text-slate-400">選定城市</p>
-              <h3 className="mt-3 text-2xl font-bold text-white">{selectedCity.name}</h3>
-              <div className="mt-4 space-y-3 text-sm text-slate-300">
-                <div className="flex items-center justify-between rounded-2xl bg-slate-800 p-3">
-                  <span className="text-slate-400">判定狀態</span>
-                  <span className="font-semibold text-cyan-300">{statusLabel(displayStatus)}</span>
-                </div>
-                <div className="flex items-center justify-between rounded-2xl bg-slate-800 p-3">
-                  <span className="text-slate-400">風力</span>
-                  <span>{selectedCity.gust} 級</span>
-                </div>
-                <div className="flex items-center justify-between rounded-2xl bg-slate-800 p-3">
-                  <span className="text-slate-400">降雨機率</span>
-                  <span>{selectedCity.probability}%</span>
-                </div>
-                <div className="flex items-center justify-between rounded-2xl bg-slate-800 p-3">
-                  <span className="text-slate-400">天氣狀態</span>
-                  <span>{officialForecasts.find((item) => item.name === selectedCity.name)?.weather || '待更新'}</span>
-                </div>
-              </div>
-              {selectedSuspension && (
-                <div className="mt-4 rounded-2xl border border-cyan-700/40 bg-cyan-500/10 p-3 text-sm text-cyan-100">
-                  <div className="font-semibold">官方停班停課狀態</div>
-                  <div className="mt-1">{selectedSuspension.note}</div>
-                  <div className="mt-2 text-xs text-cyan-200">更新時間：{selectedSuspension.updatedAt}</div>
-                </div>
-              )}
-            </div>
-
-            <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
-              <p className="text-xs uppercase tracking-[0.25em] text-slate-400">背景推播</p>
-              <h3 className="mt-3 text-xl font-bold text-white">通知狀態</h3>
-              <div className="mt-4 space-y-3">
-                <div className="rounded-2xl bg-slate-800 p-3 text-sm text-slate-200">{pushStatus}</div>
-                <button
-                  onClick={openNotificationPermission}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl bg-amber-400 px-4 py-3 font-semibold text-slate-950 transition hover:bg-amber-300"
-                >
-                  <Bell className="h-4 w-4" />
-                  {pushEnabled ? '重新啟用通知' : '啟用背景推播'}
-                </button>
-                {adminMode && (
-                  <button
-                    onClick={() => {
-                      if ('Notification' in window && Notification.permission === 'granted') {
-                        new Notification('HolidayPredictor 測試推播', {
-                          body: adminAnnouncement || '已收到測試推播訊息。',
-                          tag: 'holiday-admin-test',
-                        });
-                      }
-                    }}
-                    className="flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-600 bg-slate-800 px-4 py-3 font-semibold text-slate-100 hover:border-cyan-500 hover:text-cyan-300"
-                  >
-                    測試推播
-                  </button>
-                )}
-              </div>
-            </div>
-          </aside>
-        </div>
-
-        <section className="mt-8 grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
-          <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
-            <div className="mb-4 flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.25em] text-slate-400">官方公告</p>
-                <h2 className="mt-2 text-2xl font-bold text-white">停班停課與政府公告串接</h2>
-              </div>
-              {latestOfficialNotice && (
-                <span className="rounded-full bg-rose-500/10 px-3 py-1 text-xs font-medium text-rose-200">
-                  {latestOfficialNotice.category}
-                </span>
-              )}
-            </div>
-
-            <div className="space-y-4">
-              {notices.map((notice) => (
-                <article key={notice.id} className="rounded-2xl border border-slate-700 bg-slate-800/70 p-4">
-                  <div className="flex items-start justify-between gap-4">
-                    <div>
-                      <h3 className="text-lg font-semibold text-white">{notice.title}</h3>
-                      <p className="mt-2 text-sm text-slate-300">{notice.summary}</p>
-                    </div>
-                    <a
-                      href={notice.url}
-                      target="_blank"
-                      rel="noreferrer"
-                      className="inline-flex items-center gap-1 rounded-full border border-slate-600 px-2 py-1 text-xs text-slate-300"
-                    >
-                      官方連結 <ExternalLink className="h-3 w-3" />
-                    </a>
-                  </div>
-                  <div className="mt-4 flex flex-wrap items-center gap-3 text-xs text-slate-400">
-                    <span>{notice.source}</span>
-                    <span>•</span>
-                    <span>{new Date(notice.publishedAt).toLocaleString('zh-TW')}</span>
-                    <span>•</span>
-                    <span className="font-medium text-cyan-300">{notice.status === 'holiday' ? '停班停課' : notice.status === 'normal' ? '正常上班' : '待確認'}</span>
-                  </div>
-                </article>
-              ))}
-            </div>
-          </div>
-
-          <div className="rounded-3xl border border-slate-800 bg-slate-900/80 p-6">
-            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">管理員功能</p>
-            <h3 className="mt-3 text-2xl font-bold text-white">公告覆蓋</h3>
-
-            {!adminMode ? (
-              <div className="mt-5 rounded-2xl border border-dashed border-slate-700 bg-slate-800/60 p-4 text-sm text-slate-300">
-                請先登入管理員密碼，才能覆寫官方公告或發送測試推播。預設管理員密碼為 <span className="font-semibold text-cyan-300">holiday-admin</span>。
-              </div>
-            ) : (
-              <div className="mt-5 space-y-4">
-                <textarea
-                  value={adminAnnouncement}
-                  onChange={(event) => setAdminAnnouncement(event.target.value)}
-                  rows={5}
-                  className="w-full rounded-2xl border border-slate-700 bg-slate-800 p-3 text-sm text-slate-100 placeholder:text-slate-400 focus:border-cyan-500 focus:outline-none"
-                  placeholder="輸入管理員公告內容"
-                />
-                <button
-                  onClick={() => {
-                    const note = adminAnnouncement.trim() || '管理員已更新公告';
-                    setNotices((prev) => [
-                      {
-                        id: 'admin-override',
-                        title: '管理員覆蓋公告',
-                        summary: note,
-                        source: '管理員後台',
-                        url: 'https://www.dgpa.gov.tw/',
-                        publishedAt: new Date().toISOString(),
-                        category: '行政',
-                        status: 'pending',
-                      },
-                      ...prev,
-                    ]);
-                    setPushStatus('已更新管理員公告，將同步通知');
-                    if ('Notification' in window && Notification.permission === 'granted') {
-                      new Notification('HolidayPredictor｜管理員公告已更新', {
-                        body: note,
-                        tag: 'holiday-admin-override',
-                      });
-                    }
-                  }}
-                  className="w-full rounded-2xl bg-cyan-500 px-4 py-3 font-semibold text-slate-950 transition hover:bg-cyan-400"
-                >
-                  儲存管理員公告
-                </button>
-              </div>
-            )}
-          </div>
-        </section>
-      </div>
-    </div>
-  );
+interface Env {
+  ASSETS: { fetch(request: Request): Promise<Response> };
+  CWA_API_KEY?: string;
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+interface CwaElement { elementName: string; time?: Array<{ startTime?: string; parameter?: { parameterName?: string } }> }
+interface CwaLocation { locationName: string; weatherElement?: CwaElement[] }
+interface CwaResponse { records?: { location?: CwaLocation[] } }
+const DGPA_URL = 'https://www.dgpa.gov.tw/typh/daily/nds.html';
+const CWA_URL = 'https://opendata.cwa.gov.tw/api/v1/rest/datastore/F-C0032-001';
+const CITY_NAMES = ['基隆市','臺北市','新北市','桃園市','新竹市','新竹縣','苗栗縣','臺中市','彰化縣','南投縣','雲林縣','嘉義市','嘉義縣','臺南市','高雄市','屏東縣','宜蘭縣','花蓮縣','臺東縣','澎湖縣','金門縣','連江縣'];
+const esc = (s: string) => s.replaceAll('&nbsp;',' ').replaceAll('&amp;','&').replaceAll('&lt;','<').replaceAll('&gt;','>').replaceAll('&quot;','"').replaceAll('&#39;','\'');
+function plainText(html: string): string {
+  return html.replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi,' ')
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi,' ')
+    .replace(/<\/(?:tr|td|th|p|div|li|h[1-6])\s*>/gi,'\n')
+    .replace(/<[^>]+>/g,' ')
+    .replace(/&nbsp;|&#160;/gi,' ')
+    .replace(/&amp;/gi,'&').replace(/&lt;/gi,'<').replace(/&gt;/gi,'>')
+    .replace(/\s+/g,' ').replace(/\s*\n\s*/g,'\n').trim();
+}
+async function fetchOfficialSuspension() {
+  const response = await fetch(DGPA_URL, { headers: { 'User-Agent': 'HolidayPredictor/1.0 (official announcement reader)', 'Accept': 'text/html' }, cf: { cacheTtl: 180, cacheEverything: true } });
+  if (!response.ok) throw new Error('DGPA_HTTP_' + response.status);
+  const html = await response.text();
+  const text = plainText(html);
+  const updated = text.match(/更新時間：?\s*([0-9]{4}[\/.-][0-9]{1,2}[\/.-][0-9]{1,2}\s+[0-9:]+)/)?.[1] ?? null;
+  const today = text.match(/(\d{4}年\s*\d{1,2}月\s*\d{1,2}日)\s*天然災害停止上班及上課情形/)?.[1] ?? null;
+  const rows = CITY_NAMES.map(city => {
+    const escaped = city.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
+    const pattern = new RegExp(escaped + '\\s+(.{0,100}?)(?=' + CITY_NAMES.map(x=>x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|') + '|備註：|外島地區|中部地區|南部地區|東部地區|北部地區|$)');
+    const match = text.match(pattern);
+    const detail = match?.[1]?.trim() ?? '';
+    const isSuspended = /停止上班[、及與]?\s*停止上課|停止上班、停止上課/.test(detail);
+    const partial = /停止上班|停止上課/.test(detail) && !/未達停止上班|未達停止上課/.test(detail);
+    const reachedOnly = /已達停止上班及上課標準|已達停止上班上課標準/.test(detail) && !isSuspended;
+    return { city, status: isSuspended ? 'suspended' : partial ? 'partial' : reachedOnly ? 'pending' : /未達停止上班|無停班停課訊息/.test(detail) ? 'no_closure_notice' : 'pending', isSuspended, detail: detail || '官方頁面未提供可解析的縣市狀態' };
+  });
+  return { source: '行政院人事行政總處', sourceUrl: DGPA_URL, fetchedAt: new Date().toISOString(), updatedAt: updated, bulletinDate: today, rows, pageText: text.slice(0, 12000) };
+}
+function findCwaValue(elements: CwaElement[] | undefined, key: string) {
+  const item = elements?.find(e => e.elementName === key)?.time?.find(t => {
+    const value = t.parameter?.parameterName;
+    return Boolean(value && value !== '-99' && value !== 'X');
+  });
+  return item?.parameter?.parameterName ? { value: item.parameter.parameterName, time: item.startTime } : null;
+}
+async function weather(env: Env) {
+  if (!env.CWA_API_KEY) return Response.json({ error:'CWA_API_KEY_REQUIRED', message:'請在 Cloudflare Worker Settings → Variables and Secrets 設定 CWA_API_KEY。' }, { status:503 });
+  const url = new URL(CWA_URL); url.searchParams.set('Authorization', env.CWA_API_KEY); url.searchParams.set('format','JSON');
+  try {
+    const response = await fetch(url, { headers:{ accept:'application/json' }, cf:{cacheTtl:600,cacheEverything:true} });
+    if (!response.ok) return Response.json({error:'CWA_UPSTREAM_ERROR',message:'中央氣象署資料暫時無法取得。',upstreamStatus:response.status},{status:502});
+    const payload = await response.json() as CwaResponse;
+    const locations = payload.records?.location ?? [];
+    if (!locations.length) return Response.json({error:'CWA_EMPTY_RESPONSE',message:'中央氣象署回傳資料格式不符或沒有資料。'},{status:502});
+    const forecasts = CITY_NAMES.map(name => {
+      const loc = locations.find(x => x.locationName === name || x.locationName.replaceAll('臺','台') === name.replaceAll('臺','台'));
+      const e = loc?.weatherElement;
+      const wx=findCwaValue(e,'Wx'), pop=findCwaValue(e,'PoP'), min=findCwaValue(e,'MinT'), max=findCwaValue(e,'MaxT'), ci=findCwaValue(e,'CI');
+      return {name,available:Boolean(loc),weather:wx?.value??null,rainProbability:pop?Number(pop.value):null,minTemperature:min?Number(min.value):null,maxTemperature:max?Number(max.value):null,comfort:ci?.value??null,forecastTime:wx?.time??pop?.time??null};
+    });
+    return Response.json({source:'中央氣象署開放資料平台',dataset:'F-C0032-001',fetchedAt:new Date().toISOString(),forecasts},{headers:{'Cache-Control':'public, max-age=300, s-maxage=600'}});
+  } catch { return Response.json({error:'CWA_FETCH_FAILED',message:'連線中央氣象署失敗，請稍後再試。'},{status:502}); }
+}
+function suspensionPayload(data: Awaited<ReturnType<typeof fetchOfficialSuspension>>, city?: string) {
+  const rows = city ? data.rows.filter(r => r.city === city || r.city.replaceAll('臺','台') === city.replaceAll('臺','台')) : data.rows;
+  return { source:data.source, sourceUrl:data.sourceUrl, fetchedAt:data.fetchedAt, updatedAt:data.updatedAt, bulletinDate:data.bulletinDate, rows };
+}
+export default {
+  async fetch(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+    if (url.pathname === '/api/health') return Response.json({ok:true,service:'HolidayPredictor Worker',officialWeatherConfigured:Boolean(env.CWA_API_KEY),officialSuspensionSource:DGPA_URL});
+    if (url.pathname === '/api/weather') return weather(env);
+    if (url.pathname === '/api/suspension' || url.pathname === '/api/announcements') {
+      try {
+        const data = await fetchOfficialSuspension();
+        if (url.pathname === '/api/suspension') {
+          const city = url.searchParams.get('city') ?? undefined;
+          const result = suspensionPayload(data, city);
+          const row = result.rows[0];
+          if (city && !row) return Response.json({error:'CITY_NOT_FOUND',message:'官方資料中找不到此縣市。'},{status:404});
+          return Response.json(city && row ? {city:row.city,date:data.bulletinDate??new Date().toISOString().slice(0,10),isSuspended:row.isSuspended,status:row.status,note:row.detail,source:data.source,sourceUrl:data.sourceUrl,updatedAt:data.updatedAt??data.fetchedAt} : result, {headers:{'Cache-Control':'public, max-age=120, s-maxage=180'}});
+        }
+        const notices = data.rows.filter(r => r.status === 'suspended' || r.status === 'partial').map(r => ({id:r.city,title:r.city + ' 停班停課官方訊息',summary:r.detail,source:data.source,url:data.sourceUrl,publishedAt:data.updatedAt??data.fetchedAt,category:'停班停課',status:r.status==='suspended'?'holiday':'pending'}));
+        if (!notices.length) notices.push({id:'dgpa-current',title:'官方停班停課公告查詢結果',summary:'目前官方頁面未解析到明確的停止上班／上課公告。這不代表已確認正常上班上課，請查看官方原文及地方政府最新公告。',source:data.source,url:data.sourceUrl,publishedAt:data.updatedAt??data.fetchedAt,category:'停班停課',status:'pending'});
+        return Response.json({source:data.source,sourceUrl:data.sourceUrl,fetchedAt:data.fetchedAt,updatedAt:data.updatedAt,bulletinDate:data.bulletinDate,notices},{headers:{'Cache-Control':'public, max-age=120, s-maxage=180'}});
+      } catch {
+        return Response.json({error:'DGPA_FETCH_FAILED',message:'目前無法讀取人事行政總處官方頁面，請直接查看官方來源。',sourceUrl:DGPA_URL},{status:502});
+      }
+    }
+    return env.ASSETS.fetch(request);
+  }
+} satisfies ExportedHandler<Env>;
