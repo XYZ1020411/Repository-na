@@ -33,7 +33,7 @@ async function fetchOfficialSuspension() {
     const isSuspended = /停止上班[、及與]?\s*停止上課|停止上班、停止上課/.test(detail);
     const partial = /停止上班|停止上課/.test(detail) && !/未達停止上班|未達停止上課/.test(detail);
     const reachedOnly = /已達停止上班及上課標準|已達停止上班上課標準/.test(detail) && !isSuspended;
-    return { city, status: isSuspended ? 'suspended' : partial ? 'partial' : reachedOnly ? 'pending' : /未達停止上班|無停班停課訊息/.test(detail) ? 'no_closure_notice' : 'pending', isSuspended, detail: detail || '官方頁面未提供可解析的縣市狀態' };
+    const status = isSuspended ? 'suspended' : partial ? 'partial' : reachedOnly ? 'pending' : /未達停止上班|無停班停課訊息/.test(detail) ? 'no_closure_notice' : 'pending';\n    return { city, status, isSuspended: status === 'suspended' ? true : status === 'no_closure_notice' ? false : null, detail: detail || '官方頁面未提供可解析的縣市狀態' };
   });
   return { source: '行政院人事行政總處', sourceUrl: DGPA_URL, fetchedAt: new Date().toISOString(), updatedAt: updated, bulletinDate: today, rows, pageText: text.slice(0, 12000) };
 }
