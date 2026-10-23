@@ -345,6 +345,24 @@ export default function App() {
           </div>
         </section>
 
+        <section className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-3xl border border-cyan-500/30 bg-slate-900 p-5 sm:p-7">
+            <div className="flex items-center gap-2 text-cyan-300"><Wind size={20}/><h2 className="text-xl font-bold">颱風即時位置</h2></div>
+            <p className="mt-2 text-sm text-slate-400">資料每 5 分鐘更新一次；以中央氣象署可取得的座標為準。</p>
+            <p className="mt-3 text-sm text-slate-300">{typhoonStatus}</p>
+            <p className="mt-1 text-xs text-slate-500">資料時間：{typhoonUpdatedAt ? new Date(typhoonUpdatedAt).toLocaleString('zh-TW') : '尚無資料'}</p>
+            {typhoonItems.length>0 ? <div className="mt-4 space-y-3">{typhoonItems.map((item,index)=><div key={item.name+'-'+item.latitude+'-'+item.longitude+'-'+index} className="rounded-2xl border border-slate-800 bg-slate-950/60 p-4"><div className="font-semibold">{item.name}</div><div className="mt-2 text-sm text-slate-300">緯度 {item.latitude.toFixed(3)} · 經度 {item.longitude.toFixed(3)}</div><a className="mt-3 inline-flex items-center gap-2 text-sm text-cyan-300 underline" href={'https://www.google.com/maps?q='+item.latitude+','+item.longitude} target="_blank" rel="noreferrer">在地圖查看位置 <ExternalLink size={14}/></a></div>)}</div> : <div className="mt-4 rounded-xl bg-slate-950/70 p-4 text-sm text-slate-400">目前沒有可顯示的颱風座標。這不代表資料來源已驗證無颱風，請查看官方公告。</div>}
+            <a className="mt-4 inline-flex items-center gap-2 text-sm text-cyan-300 underline" href="https://www.cwa.gov.tw/V8/C/P/Typhoon/TY_NEWS.html" target="_blank" rel="noreferrer">中央氣象署颱風資訊 <ExternalLink size={14}/></a>
+          </div>
+          <div className="rounded-3xl border border-slate-800 bg-slate-900 p-5 sm:p-7">
+            <div className="flex items-center gap-2 text-cyan-300"><MapPin size={20}/><h2 className="text-xl font-bold">我目前所在區域</h2></div>
+            <p className="mt-2 text-sm text-slate-400">只有按下定位按鈕後才會向瀏覽器請求位置權限。</p>
+            <button onClick={locateMe} className="mt-4 rounded-xl bg-cyan-300 px-4 py-3 font-semibold text-slate-950">取得目前位置</button>
+            <p className="mt-3 text-sm text-slate-300">{locationStatus}</p>
+            {userLocation && <div className="mt-4 rounded-2xl border border-slate-800 bg-slate-950/60 p-4"><div className="font-semibold">{userLocation.displayName}</div><div className="mt-2 text-sm text-slate-400">緯度 {userLocation.latitude.toFixed(5)} · 經度 {userLocation.longitude.toFixed(5)}</div><a className="mt-3 inline-flex items-center gap-2 text-sm text-cyan-300 underline" href={'https://www.google.com/maps?q='+userLocation.latitude+','+userLocation.longitude} target="_blank" rel="noreferrer">在地圖查看我的位置 <ExternalLink size={14}/></a><p className="mt-2 text-xs text-slate-500">位置只用於本次區域顯示，不會自動寫入帳號。</p></div>}
+          </div>
+        </section>
+
         <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
           <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5"><div className="text-sm text-slate-400">公告狀態</div><div className="mt-2 text-xl font-bold text-amber-300">待確認</div><div className="mt-1 text-xs text-slate-500">不會自動推定為正常上班</div></div>
           <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5"><div className="text-sm text-slate-400">資料來源</div><div className="mt-2 text-xl font-bold">官方公告</div><div className="mt-1 text-xs text-slate-500">人事行政總處／地方政府</div></div>
@@ -375,7 +393,19 @@ export default function App() {
           <div className="rounded-3xl border border-slate-800 bg-slate-900 p-5 sm:p-7"><div className="flex items-center gap-2"><Wind size={20} className="text-cyan-300" /><h2 className="text-xl font-bold">查詢與使用說明</h2></div><p className="mt-3 leading-7 text-slate-300">本網站整理官方公告及天氣資訊作為參考。只有主管機關正式發布的停班停課公告，才能視為正式決定。</p><ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-6 text-slate-400"><li>若官方資料無法取得，狀態保持「待確認」。</li><li>公告頁會提供官方原始連結及可取得的更新時間。</li><li>風雨風險指標目前是示範資料，不應當成放假機率。</li></ul><div className="mt-5 flex flex-wrap gap-3"><a href="https://www.dgpa.gov.tw/typh/daily/nds.html" target="_blank" rel="noreferrer" className="rounded-xl border border-slate-700 px-4 py-3 text-sm hover:bg-slate-800">人事行政總處公告 <ExternalLink size={15} className="inline" /></a><a href="https://www.cwa.gov.tw/" target="_blank" rel="noreferrer" className="rounded-xl border border-slate-700 px-4 py-3 text-sm hover:bg-slate-800">中央氣象署 <ExternalLink size={15} className="inline" /></a></div></div>
         </section>
 
-        {adminMode && <section className="rounded-3xl border border-violet-500/30 bg-violet-500/5 p-5 sm:p-7"><h2 className="text-xl font-bold">管理員公告設定</h2><p className="mt-2 text-sm text-slate-400">此設定只儲存在目前瀏覽器，不會發布成政府公告。</p><textarea value={adminAnnouncement} onChange={(e) => setAdminAnnouncement(e.target.value)} className="mt-3 min-h-24 w-full rounded-xl border border-slate-700 bg-slate-950 p-3" /><button onClick={() => setPushStatus('管理員備註已儲存於本機瀏覽器')} className="mt-3 rounded-xl bg-violet-400 px-4 py-2 font-semibold text-slate-950">儲存備註</button></section>}
+        {adminMode && <section className="rounded-3xl border border-violet-500/30 bg-violet-500/5 p-5 sm:p-7">
+          <h2 className="text-xl font-bold">管理員控制台</h2>
+          <p className="mt-2 text-sm text-slate-400">可測試 LINE 訊息推播、維護公告備註與查看通知狀態。正式公告仍以政府機關為準。</p>
+          <div className="mt-4 rounded-2xl border border-slate-700 bg-slate-950/60 p-4">
+            <div className="flex items-center gap-2 font-semibold"><MessageCircle size={18} className="text-green-400"/>LINE 官方帳號整合</div>
+            <p className="mt-2 text-sm text-slate-400">目前狀態：{lineStatus}</p>
+            <p className="mt-1 text-xs text-slate-500">尚未設定名稱與 Logo 時，前台會以通用文字顯示；請在 Cloudflare Worker Secrets 設定 LINE_CHANNEL_ACCESS_TOKEN、LINE_TARGET_USER_ID，並可設定 LINE_OA_URL。</p>
+            {lineAccountUrl && <a href={lineAccountUrl} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-2 text-sm text-green-300 underline">開啟 LINE 官方帳號 <ExternalLink size={14}/></a>}
+            <label className="mt-4 block text-sm text-slate-300">推播測試訊息<textarea value={lineMessage} onChange={e=>setLineMessage(e.target.value)} className="mt-2 min-h-20 w-full rounded-xl border border-slate-700 bg-slate-900 p-3"/></label>
+            <button onClick={()=>void sendLinePush()} className="mt-3 rounded-xl bg-green-400 px-4 py-3 font-semibold text-slate-950">傳送 LINE 推播</button>
+          </div>
+          <div className="mt-4"><label className="block text-sm text-slate-300">管理員公告備註（僅儲存在此瀏覽器）<textarea value={adminAnnouncement} onChange={(e) => setAdminAnnouncement(e.target.value)} className="mt-2 min-h-24 w-full rounded-xl border border-slate-700 bg-slate-950 p-3" /></label><button onClick={() => setPushStatus('管理員備註已儲存於本機瀏覽器')} className="mt-3 rounded-xl bg-violet-400 px-4 py-2 font-semibold text-slate-950">儲存備註</button><p className="mt-2 text-xs text-slate-500">{pushStatus}</p></div>
+        </section>}
         {!adminMode && <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5"><h2 className="font-semibold">管理員入口</h2><div className="mt-3 flex flex-col gap-3 sm:flex-row"><input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} placeholder="輸入管理員密碼" className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2" /><button onClick={loginAsAdmin} className="rounded-xl border border-slate-700 px-4 py-2 hover:bg-slate-800">登入</button></div><p className="mt-2 text-xs text-slate-500">目前管理員登入為前端示範功能，正式環境請改用安全的伺服器端驗證。</p></section>}
         <footer className="pb-8 text-center text-xs text-slate-500">HolidayPredictor · 資料未能驗證時不推定為正常上班上課</footer>
       </main>
