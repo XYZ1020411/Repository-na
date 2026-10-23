@@ -35,7 +35,7 @@ async function fetchOfficialSuspension() {
     const match = text.match(pattern);
     const detail = match?.[1]?.trim() ?? '';
     const isSuspended = /停止上班[、及與]?\s*停止上課|停止上班、停止上課/.test(detail);
-    const partial = /停止上班|停止上課/.test(detail) && !/未達停止上班|未達停止上課/.test(detail);
+    const partial = /照常上班[、及與]停止上課|停止上班[、及與]照常上課|未達停止上班[、及與]已達停止上課|已達停止上班[、及與]未達停止上課/.test(detail);
     const reachedOnly = /已達停止上班及上課標準|已達停止上班上課標準/.test(detail) && !isSuspended;
     const status = isSuspended ? 'suspended' : partial ? 'partial' : reachedOnly ? 'pending' : /未達停止上班|無停班停課訊息/.test(detail) || (!detail && globalNoNotice) ? 'no_closure_notice' : 'pending';
     return { city, status, isSuspended: status === 'suspended' ? true : status === 'no_closure_notice' ? false : null, detail: detail || '官方頁面未提供可解析的縣市狀態' };
