@@ -25,7 +25,6 @@ type OfficialNotice = {
   status: 'normal' | 'holiday' | 'pending';
 };
 
-const STORAGE_KEY = 'holiday-admin-enabled';
 const ANNOUNCEMENT_KEY = 'holiday-admin-notice';
 
 const fallbackNotices: OfficialNotice[] = [
@@ -61,12 +60,9 @@ export default function App() {
   const [scenario, setScenario] = useState(scenarios[0]);
   const [search, setSearch] = useState('');
   const [adminPassword, setAdminPassword] = useState('');
-  const [adminMode, setAdminMode] = useState<boolean>(() => {
-    if (typeof window === 'undefined') return false;
-    return localStorage.getItem(STORAGE_KEY) === 'true';
-  });
+  const [adminMode, setAdminMode] = useState(false);
   const [pushEnabled, setPushEnabled] = useState(false);
-  const [pushStatus, setPushStatus] = useState('通知未啟用');
+  const [pushStatus, setPushStatus] = useState('通知未啟用；目前為網頁開啟時檢查更新，尚未配置真正的背景推播服務');
   const [notices, setNotices] = useState<OfficialNotice[]>(fallbackNotices);
   const [adminAnnouncement, setAdminAnnouncement] = useState<string>(() => {
     if (typeof window === 'undefined') return '不提供測試通報';
@@ -157,7 +153,7 @@ export default function App() {
 
   useEffect(() => {
     if (!('Notification' in window)) {
-      setPushStatus('此瀏覽器不支援背景通知');
+      setPushStatus('此瀏覽器不支援網頁通知');
       return;
     }
 
@@ -165,14 +161,9 @@ export default function App() {
     const isGranted = permission === 'granted';
     setPushEnabled(isGranted);
     setPushStatus(
-      isGranted ? '已啟用背景推播' : permission === 'denied' ? '已拒絕通知' : '通知未啟用'
+      isGranted ? '已允許通知（網頁開啟時檢查更新）' : permission === 'denied' ? '已拒絕通知' : '通知未啟用'
     );
   }, []);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-    localStorage.setItem(STORAGE_KEY, String(adminMode));
-  }, [adminMode]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -212,15 +203,15 @@ export default function App() {
     const isGranted = permission === 'granted';
     setPushEnabled(isGranted);
     setPushStatus(
-      isGranted ? '已啟用背景推播' : permission === 'denied' ? '已拒絕通知' : '通知未啟用'
+      isGranted ? '已允許通知（網頁開啟時檢查更新）' : permission === 'denied' ? '已拒絕通知' : '通知未啟用'
     );
 
     if (isGranted && 'serviceWorker' in navigator) {
       const registration = await navigator.serviceWorker.ready;
       registration.active?.postMessage({
         type: 'NOTIFY',
-        title: 'HolidayPredictor 已啟用背景推播',
-        body: '現在會在官方公告更新時自動通知你。',
+        title: 'HolidayPredictor 已允許網頁通知（開啟網頁時檢查更新）',
+        body: '當此網頁開啟並檢查到官方公告更新時，會通知你。',
       });
     }
   };
