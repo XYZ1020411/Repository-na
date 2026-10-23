@@ -27,7 +27,7 @@ async function fetchOfficialSuspension() {
   const html = await response.text();
   const text = plainText(html);
   const updated = text.match(/更新時間：?\s*([0-9]{4}[\/.-][0-9]{1,2}[\/.-][0-9]{1,2}\s+[0-9:]+)/)?.[1] ?? null;
-  const today = text.match(/(\d{4}年\s*\d{1,2}月\s*\d{1,2}日)\s*天然災害停止上班及上課情形/)?.[1] ?? null;
+  const today = text.match(/((?:\d{3,4})年\s*\d{1,2}月\s*\d{1,2}日)\s*天然災害停止上班及上課情形/)?.[1] ?? null;
   const globalNoNotice = /無停班停課訊息/.test(text);
   const rows = CITY_NAMES.map(city => {
     const escaped = city.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
@@ -90,7 +90,15 @@ export default {
         if (!notices.length) notices.push({id:'dgpa-current',title:'官方停班停課公告查詢結果',summary:'目前官方頁面未解析到明確的停止上班／上課公告。這不代表已確認正常上班上課，請查看官方原文及地方政府最新公告。',source:data.source,url:data.sourceUrl,publishedAt:data.updatedAt??data.fetchedAt,category:'停班停課',status:'pending'});
         return Response.json({source:data.source,sourceUrl:data.sourceUrl,fetchedAt:data.fetchedAt,updatedAt:data.updatedAt,bulletinDate:data.bulletinDate,notices},{headers:{'Cache-Control':'public, max-age=120, s-maxage=180'}});
       } catch {
-        return Response.json({error:'DGPA_FETCH_FAILED',message:'目前無法讀取人事行政總處官方頁面，請直接查看官方來源。',sourceUrl:DGPA_URL},{status:502});
+        const now = new Date().toISOString();
+        if (url.pathname === '/api/announcements') {
+          return Response.json({
+            source:'行政院人事行政總處', sourceUrl:DGPA_URL, fetchedAt:now, updatedAt:null,
+            parseStatus:'unavailable',
+            notices:[{id:'dgpa-pending',title:'官方停班停課公告待確認',summary:'目前無法取得官方公告。這不代表正常上班上課；狀態維持待確認。請查看官方原文及地方政府公告。',source:'行政院人事行政總處',url:DGPA_URL,publishedAt:now,category:'停班停課',status:'pending'}]
+          }, {headers:{'Cache-Control':'no-store'}});
+        }
+        return Response.json({error:'DGPA_FETCH_FAILED',message:'目前無法取得官方公告，狀態維持待確認。',source:'行政院人事行政總處',sourceUrl:DGPA_URL,fetchedAt:now,updatedAt:null,status:'pending',isSuspended:null},{status:502,headers:{'Cache-Control':'no-store'}});
       }
     }
     return env.ASSETS.fetch(request);
