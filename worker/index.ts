@@ -5,6 +5,7 @@ interface Env {
   LINE_CHANNEL_ACCESS_TOKEN?: string;
   LINE_TARGET_USER_ID?: string;
   LINE_OA_URL?: string;
+  ANNOUNCEMENTS_KV?: { put(key:string,value:string,options?:{expirationTtl?:number}):Promise<void>; get(key:string,type:'json'):Promise<any> };
 }
 interface CwaElement { elementName: string; time?: Array<{ startTime?: string; parameter?: { parameterName?: string } }> }
 interface CwaLocation { locationName: string; weatherElement?: CwaElement[] }
@@ -129,6 +130,32 @@ export default {
     if (url.pathname === '/api/weather') return weather(env);
     if (url.pathname === '/api/typhoon') return typhoon(env);
     if (url.pathname === '/api/admin/login' && request.method === 'POST') { let body:any={}; try{body=await request.json();}catch{}; if(!env.ADMIN_PASSWORD) return Response.json({ok:false,message:'尚未在 Cloudflare 設定 ADMIN_PASSWORD'},{status:503}); return body.password===env.ADMIN_PASSWORD ? Response.json({ok:true}) : Response.json({ok:false,message:'管理員密碼錯誤'},{status:401}); }
+    if (url.pathname === '/api/admin/publish' && request.method === 'POST') {
+      if (!env.ADMIN_PASSWORD) return Response.json({ok:false,message:'尚未設定 ADMIN_PASSWORD'},{status:503});
+      let body:any={}; try { body=await request.json(); } catch {}
+      if (body.adminPassword !== env.ADMIN_PASSWORD) return Response.json({ok:false,message:'管理員驗證失敗'},{status:401});
+      const title=String(body.title??'').trim().slice(0,100);
+      const message=String(body.message??'').trim().slice(0,1500);
+      if (!title || !message) return Response.json({ok:false,message:'請填寫公告標題與內容'},{status:400});
+      if (!env.ANNOUNCEMENTS_KV) return Response.json({ok:false,message:'公告資料庫尚未連接。請在 Cloudflare 建立 KV Namespace，並綁定 Worker 變數 ANNOUNCEMENTS_KV。'},{status:503});
+      const item={id:crypto.randomUUID(),title,message,publishedAt:new Date().toISOString(),source:'網站管理員',status:'published'};
+      const current=await env.ANNOUNCEMENTS_KV.get('public-notices','json') ?? [];
+      const list=[item,...(Array.isArray(current)?current:[])].slice(0,50);
+      await env.ANNOUNCEMENTS_KV.put('public-notices',JSON.stringify(list));
+      let lineSent=false; let lineWarning='';
+      if (env.LINE_CHANNEL_ACCESS_TOKEN && env.LINE_TARGET_USER_ID) {
+        try {
+          const lr=await fetch(LINE_PUSH_URL,{method:'POST',headers:{authorization:'Bearer '+env.LINE_CHANNEL_ACCESS_TOKEN,'content-type':'application/json'},body:JSON.stringify({to:env.LINE_TARGET_USER_ID,messages:[{type:'text',text:title+'\n'+message}]})});
+          lineSent=lr.ok; if(!lr.ok) lineWarning='公告已發布，但 LINE API 傳送失敗（HTTP '+lr.status+'）';
+        } catch { lineWarning='公告已發布，但 LINE API 暫時無法連線'; }
+      } else lineWarning='公告已發布；LINE 尚未設定，因此未發送 LINE 推播';
+      return Response.json({ok:true,item,lineSent,message:lineWarning || '公告已發布並已傳送 LINE 推播'});
+    }
+    if (url.pathname === '/api/admin/notices' && request.method === 'GET') {
+      if (!env.ANNOUNCEMENTS_KV) return Response.json({notices:[],configured:false,message:'公告資料庫尚未連接'});
+      const notices=await env.ANNOUNCEMENTS_KV.get('public-notices','json') ?? [];
+      return Response.json({notices:Array.isArray(notices)?notices:[],configured:true},{headers:{'Cache-Control':'no-store'}});
+    }
     if (url.pathname === '/api/line/status') return Response.json({configured:Boolean(env.LINE_CHANNEL_ACCESS_TOKEN&&env.LINE_TARGET_USER_ID),accountUrl:env.LINE_OA_URL||null,displayName:'LINE 官方帳號（名稱尚未設定）',logoConfigured:false});
     if (url.pathname === '/api/line/push' && request.method === 'POST') return linePush(request,env);
     if (url.pathname === '/api/location' && request.method === 'GET') {
