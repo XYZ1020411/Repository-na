@@ -245,547 +245,79 @@ export default function App() {
 
   const latestOfficialNotice = notices[0] ?? fallbackNotices[0];
 
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-50">
-      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-        <header className="mb-8 flex flex-col gap-4 rounded-3xl border border-slate-800 bg-slate-900/80 p-6 shadow-2xl shadow-slate-950/40 md:flex-row md:items-center md:justify-between">
+    <div className="min-h-screen bg-slate-950 text-slate-100">
+      <header className="border-b border-slate-800 bg-slate-900/90">
+        <div className="mx-auto flex max-w-7xl flex-col gap-3 px-4 py-5 sm:px-6 lg:flex-row lg:items-center lg:justify-between lg:px-8">
           <div>
-            <p className="text-sm uppercase tracking-[0.3em] text-cyan-300">HolidayPredictor</p>
-            <h1 className="mt-2 text-3xl font-bold text-white">台灣停班停課預測與公告整合</h1>
+            <p className="text-xs font-semibold uppercase tracking-[0.3em] text-cyan-300">HolidayPredictor</p>
+            <h1 className="mt-2 text-2xl font-bold sm:text-3xl">台灣停班停課資訊站</h1>
+            <p className="mt-1 text-sm text-slate-400">官方公告優先 · 未取得資料時一律顯示待確認</p>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={refreshAnnouncement}
-              className="inline-flex items-center gap-2 rounded-full border border-slate-600 bg-slate-800 px-4 py-2 text-sm font-medium text-slate-200 transition hover:border-cyan-400 hover:text-cyan-300"
-            >
-              <RefreshCw className="h-4 w-4" />
-              更新公告
-            </button>
-            {!adminMode ? (
-              <div className="flex items-center gap-2 rounded-full border border-slate-700 bg-slate-800 px-3 py-2">
-                <ShieldAlert className="h-4 w-4 text-cyan-300" />
-                <input
-                  type="password"
-                  value={adminPassword}
-                  onChange={(event) => setAdminPassword(event.target.value)}
-                  placeholder="管理員密碼"
-                  className="w-28 bg-transparent text-sm text-slate-100 placeholder:text-slate-400 focus:outline-none"
-                />
-                <button onClick={loginAsAdmin} className="rounded-full bg-cyan-500 px-3 py-1 text-xs font-semibold text-slate-950">
-                  登入
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setAdminMode(false)}
-                className="rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-slate-950"
-              >
-                管理員已登入
-              </button>
-            )}
-          </div>
-        </header>
-
-        <div className="grid gap-6 lg:grid-cols-[1.5fr_0.9fr]">
-          <section className="rounded-3xl border border-slate-800 bg-slate-900/75 p-6">
-            <div className="mb-5 flex items-center justify-between">
-              <div>
-                <p className="text-xs uppercase tracking-[0.25em] text-slate-400">預測資料</p>
-                <h2 className="mt-2 text-2xl font-bold text-white">即時風雨與停班停課分析</h2>
-              </div>
-              <div className="rounded-full border border-cyan-700/40 bg-cyan-500/10 px-3 py-1 text-xs font-medium text-cyan-200">
-                {officialStatus}
-              </div>
-            </div>
-
-            <div className="mb-5 flex flex-wrap gap-2">
-              {regions.map((item) => (
-                <button
-                  key={item}
-                  onClick={() => setRegion(item)}
-                  className={`rounded-full px-3 py-1.5 text-sm transition ${
-                    region === item
-                      ? 'bg-cyan-500 text-slate-950'
-                      : 'border border-slate-700 bg-slate-800 text-slate-300 hover:border-cyan-500 hover:text-cyan-300'
-                  }`}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-
-            <div className="mb-5 flex flex-wrap gap-2">
-              {scenarios.map((item) => (
-                <button
-                  key={item}
-                  onClick={() => setScenario(item)}
-                  className={`rounded-full px-3 py-1.5 text-sm transition ${
-                    scenario === item
-                      ? 'bg-violet-500 text-slate-950'
-                      : 'border border-slate-700 bg-slate-800 text-slate-300 hover:border-violet-500 hover:text-violet-300'
-                  }`}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-
-            <div className="mb-6 flex items-center gap-3 rounded-2xl border border-slate-700 bg-slate-800/70 p-3">
-              <Search className="h-4 w-4 text-slate-400" />
-              <input
-                value={search}
-                onChange={(event) => setSearch(event.target.value)}
-                placeholder="搜尋縣市或區域"
-                className="w-full bg-transparent text-sm text-slate-100 placeholder:text-slate-400 focus:outline-none"
-              />
-            </div>
-
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-              {visibleCities.map((item) => {
-                const active = selectedCity?.name === item.name;
-                return (
-    <div className="min-h-screen bg-[#07111f] text-slate-100">
-      <div className="mx-auto max-w-7xl px-4 pb-12 pt-5 sm:px-6 lg:px-8">
-        <header className="mb-6 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-cyan-400 text-slate-950 shadow-lg shadow-cyan-950/40">
-              <CloudRain className="h-6 w-6" />
-            </div>
-            <div>
-              <p className="text-xs font-bold uppercase tracking-[0.24em] text-cyan-300">HolidayPredictor</p>
-              <h1 className="mt-1 text-lg font-bold sm:text-xl">台灣停班停課資訊站</h1>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button onClick={refreshAnnouncement} className="inline-flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 px-3 py-2.5 text-sm font-semibold text-slate-200 hover:border-cyan-400">
-              <RefreshCw className="h-4 w-4" /> 更新公告
-            </button>
-            {!adminMode ? (
-              <div className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-900 p-1.5">
-                <input type="password" value={adminPassword} onChange={(event) => setAdminPassword(event.target.value)} placeholder="管理密碼" className="w-24 bg-transparent px-2 text-sm outline-none sm:w-32" />
-                <button onClick={loginAsAdmin} className="rounded-lg bg-cyan-400 px-3 py-2 text-xs font-bold text-slate-950">登入</button>
-              </div>
-            ) : (
-              <button onClick={() => setAdminMode(false)} className="rounded-xl bg-emerald-400 px-3 py-2.5 text-sm font-bold text-slate-950">管理員登出</button>
-            )}
-          </div>
-        </header>
-
-        <section className="relative mb-6 overflow-hidden rounded-[2rem] border border-cyan-900/70 bg-gradient-to-br from-[#10283b] via-[#101c30] to-[#111827] p-5 shadow-2xl shadow-black/20 sm:p-8">
-          <div className="pointer-events-none absolute -right-10 -top-16 h-56 w-56 rounded-full bg-cyan-400/10 blur-3xl" />
-          <div className="relative grid gap-6 md:grid-cols-[1.15fr_0.85fr] md:items-center">
-            <div>
-              <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-300/25 bg-amber-300/10 px-3 py-1.5 text-xs font-bold text-amber-200">
-                <span className="h-2 w-2 rounded-full bg-amber-300" /> 官方公告狀態：待確認
-              </div>
-              <p className="text-sm font-medium text-slate-400">台灣各縣市即時資訊</p>
-              <h2 className="mt-2 text-3xl font-black leading-tight text-white sm:text-4xl">今天是否停班停課？</h2>
-              <p className="mt-3 max-w-xl text-sm leading-6 text-slate-300 sm:text-base">整合官方天氣預報與停班停課公告。公告尚未取得或尚未確認時，不會直接推定為正常上班上課。</p>
-              <div className="mt-5 flex flex-wrap gap-3">
-                <a href="https://www.dgpa.gov.tw/typh/daily/nds.html" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl bg-cyan-400 px-4 py-3 text-sm font-bold text-slate-950 hover:bg-cyan-300">查看人事行政總處 <ExternalLink className="h-4 w-4" /></a>
-                <a href="https://www.cwa.gov.tw/" target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 rounded-xl border border-slate-600 bg-slate-900/60 px-4 py-3 text-sm font-semibold text-slate-100 hover:border-cyan-400">中央氣象署 <ExternalLink className="h-4 w-4" /></a>
-              </div>
-            </div>
-            <div className="rounded-3xl border border-white/10 bg-slate-950/35 p-5 backdrop-blur">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <p className="text-sm text-slate-400">目前選取縣市</p>
-                  <h3 className="mt-1 text-2xl font-black text-white">{selectedCity.name}</h3>
-                </div>
-                <span className="rounded-full border border-amber-300/30 bg-amber-300/10 px-3 py-1.5 text-xs font-bold text-amber-200">{statusLabel(selectedCity.status)}</span>
-              </div>
-              <div className="mt-5 grid grid-cols-2 gap-3">
-                <div className="rounded-2xl bg-white/5 p-4">
-                  <Wind className="mb-2 h-5 w-5 text-cyan-300" />
-                  <p className="text-xs text-slate-400">風力指標</p>
-                  <p className="mt-1 text-xl font-bold">{selectedCity.gust} <span className="text-xs font-normal text-slate-400">級</span></p>
-                </div>
-                <div className="rounded-2xl bg-white/5 p-4">
-                  <CloudRain className="mb-2 h-5 w-5 text-sky-300" />
-                  <p className="text-xs text-slate-400">降雨風險</p>
-                  <p className="mt-1 text-xl font-bold">{selectedCity.probability}%</p>
-                </div>
-              </div>
-              <div className="mt-3 rounded-2xl border border-white/10 bg-white/[0.03] p-3 text-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <span className="text-slate-400">天氣預報</span>
-                  <span className="font-semibold text-slate-100">{officialForecasts.find((item) => item.name === selectedCity.name)?.weather || '待更新'}</span>
-                </div>
-                <div className="mt-2 flex items-center justify-between gap-3">
-                  <span className="text-slate-400">天氣資料來源</span>
-                  <span className="text-right text-xs text-cyan-200">{officialStatus}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        <section className="mb-6 grid gap-4 sm:grid-cols-3">
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
-            <p className="text-xs text-slate-400">縣市覆蓋</p><p className="mt-2 text-2xl font-black">22 <span className="text-sm font-medium text-slate-400">縣市</span></p>
-            <p className="mt-1 text-xs text-slate-500">全台縣市公告狀態總覽</p>
-          </div>
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
-            <p className="text-xs text-slate-400">官方公告</p><p className="mt-2 text-xl font-black text-amber-200">尚待確認</p>
-            <p className="mt-1 text-xs text-slate-500">請以政府原始公告為準</p>
-          </div>
-          <div className="rounded-2xl border border-slate-800 bg-slate-900/80 p-4">
-            <p className="text-xs text-slate-400">天氣資料來源</p><p className="mt-2 text-xl font-black">中央氣象署</p>
-            <p className="mt-1 text-xs text-slate-500">狀態：{statusCode ? '已連線' : '待檢查連線'}</p>
-          </div>
-        </section>
-
-        <div className="grid gap-6 xl:grid-cols-[1.5fr_0.8fr]">
-          <section className="rounded-[1.75rem] border border-slate-800 bg-slate-900/80 p-5 sm:p-6">
-            <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-              <div><p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">City dashboard</p><h2 className="mt-1 text-2xl font-black">全台縣市公告總覽</h2><p className="mt-2 text-sm text-slate-400">選擇縣市查看風雨指標與目前判定。</p></div>
-              <div className="flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-950/70 px-3 py-2.5">
-                <Search className="h-4 w-4 text-slate-400" /><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="搜尋縣市" className="w-28 bg-transparent text-sm outline-none sm:w-40" />
-              </div>
-            </div>
-            <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
-              {regions.map((item) => <button key={item} onClick={() => setRegion(item)} className={`shrink-0 rounded-full px-4 py-2 text-sm font-semibold transition ${region === item ? 'bg-cyan-400 text-slate-950' : 'border border-slate-700 bg-slate-800 text-slate-300 hover:border-cyan-400'}`}>{item}</button>)}
-            </div>
-            <div className="mb-5 flex flex-wrap items-center gap-2">
-              <span className="mr-1 text-xs text-slate-500">情境模擬</span>
-              {scenarios.map((item) => <button key={item} onClick={() => setScenario(item)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${scenario === item ? 'bg-violet-400 text-slate-950' : 'border border-slate-700 bg-slate-800 text-slate-300'}`}>{item}</button>)}
-            </div>
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {visibleCities.map((item) => {
-                const active = selectedCity?.name === item.name;
-                return <button key={item.name} onClick={() => setSelected(item.name)} className={`rounded-2xl border p-4 text-left transition hover:-translate-y-0.5 ${active ? 'border-cyan-400 bg-cyan-400/10 ring-1 ring-cyan-400/20' : 'border-slate-800 bg-slate-950/40 hover:border-slate-600'}`}>
-                  <div className="flex items-start justify-between gap-2"><span className="font-bold">{item.name}</span><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${item.status === 'holiday' ? 'bg-rose-400/15 text-rose-200' : item.status === 'normal' ? 'bg-emerald-400/15 text-emerald-200' : 'bg-amber-300/15 text-amber-200'}`}>{statusLabel(item.status)}</span></div>
-                  <div className="mt-4 flex items-center justify-between text-xs text-slate-400"><span>風力指標</span><span className="font-semibold text-slate-200">{item.gust} 級</span></div>
-                  <div className="mt-2 flex items-center justify-between text-xs text-slate-400"><span>降雨風險</span><span className="font-semibold text-slate-200">{item.probability}%</span></div>
-                  <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-800"><div className="h-full rounded-full bg-cyan-400" style={{ width: `${Math.max(0, Math.min(100, item.probability))}%` }} /></div>
-                </button>;
-              })}
-            </div>
-            {visibleCities.length === 0 && <p className="rounded-xl border border-slate-800 p-6 text-center text-sm text-slate-400">找不到符合條件的縣市。</p>}
-            <p className="mt-4 text-xs leading-5 text-slate-500">注意：風險與情境數值屬於平台分析／示範指標，不等於政府正式停班停課決定。</p>
-          </section>
-
-          <aside className="space-y-6">
-            <section className="rounded-[1.75rem] border border-amber-300/20 bg-gradient-to-br from-amber-300/[0.08] to-slate-900 p-5 sm:p-6">
-              <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-300/10 text-amber-200"><ShieldAlert className="h-5 w-5" /></div><div><p className="text-xs font-bold uppercase tracking-wider text-amber-200">Official status</p><h2 className="text-lg font-black">官方公告狀態</h2></div></div>
-              <p className="mt-4 text-sm font-bold text-amber-200">尚未取得可驗證公告</p>
-              <p className="mt-1 text-sm leading-6 text-slate-300">沒有取得公告不代表正常上班上課。請查看官方原文確認最新消息。</p>
-              <a href="https://www.dgpa.gov.tw/typh/daily/nds.html" target="_blank" rel="noreferrer" className="mt-4 flex items-center justify-between rounded-xl border border-slate-700 bg-slate-950/60 p-3 text-sm font-semibold hover:border-amber-200"><span>人事行政總處公告</span><ExternalLink className="h-4 w-4 text-amber-200" /></a>
-              <a href="https://www.cwa.gov.tw/" target="_blank" rel="noreferrer" className="mt-2 flex items-center justify-between rounded-xl border border-slate-700 bg-slate-950/60 p-3 text-sm font-semibold hover:border-cyan-300"><span>中央氣象署</span><ExternalLink className="h-4 w-4 text-cyan-200" /></a>
-              <p className="mt-3 text-xs text-slate-500">公告資料：{latestOfficialNotice?.publishedAt ? new Date(latestOfficialNotice.publishedAt).toLocaleString('zh-TW') : '尚無更新時間'}</p>
-            </section>
-
-            <section className="rounded-[1.75rem] border border-slate-800 bg-slate-900/80 p-5 sm:p-6">
-              <div className="flex items-center gap-3"><div className="flex h-10 w-10 items-center justify-center rounded-xl bg-cyan-400/10 text-cyan-200"><Bell className="h-5 w-5" /></div><div><p className="text-xs font-bold uppercase tracking-wider text-cyan-300">Notifications</p><h2 className="text-lg font-black">公告通知</h2></div></div>
-              <p className="mt-3 text-sm leading-6 text-slate-400">{pushStatus}</p>
-              <button onClick={openNotificationPermission} className="mt-4 w-full rounded-xl bg-cyan-400 px-4 py-3 font-bold text-slate-950 hover:bg-cyan-300">{pushEnabled ? '重新設定通知' : '啟用瀏覽器通知'}</button>
-              <p className="mt-3 text-xs leading-5 text-slate-500">目前為瀏覽器通知權限；若要可靠的背景推播，仍需另行完成推播服務設定。</p>
-              {adminMode && <button onClick={() => { if ('Notification' in window && Notification.permission === 'granted') new Notification('HolidayPredictor 測試通知', { body: adminAnnouncement || '測試通知', tag: 'holiday-admin-test' }); }} className="mt-3 w-full rounded-xl border border-slate-700 px-4 py-3 text-sm font-semibold hover:border-cyan-400">發送測試通知</button>}
-            </section>
-          </aside>
+          <button onClick={refreshAnnouncement} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-700 px-4 py-3 text-sm hover:bg-slate-800">
+            <RefreshCw size={16} /> 更新官方公告
+          </button>
         </div>
+      </header>
 
-        <section className="mt-6 rounded-[1.75rem] border border-slate-800 bg-slate-900/80 p-5 sm:p-6">
-          <div className="flex flex-wrap items-center justify-between gap-3"><div><p className="text-xs font-bold uppercase tracking-[0.2em] text-cyan-300">Latest updates</p><h2 className="mt-1 text-2xl font-black">官方公告與更新紀錄</h2></div><button onClick={refreshAnnouncement} className="inline-flex items-center gap-2 rounded-xl border border-slate-700 px-3 py-2 text-sm font-semibold hover:border-cyan-400"><RefreshCw className="h-4 w-4" />重新載入</button></div>
-          <div className="mt-5 grid gap-3 md:grid-cols-2">
-            {notices.map((notice) => <article key={notice.id} className="rounded-2xl border border-slate-800 bg-slate-950/50 p-4">
-              <div className="flex items-start justify-between gap-3"><h3 className="font-bold leading-6">{notice.title}</h3><span className="shrink-0 rounded-full bg-amber-300/10 px-2.5 py-1 text-[10px] font-bold text-amber-200">{notice.status === 'holiday' ? '停班停課' : notice.status === 'normal' ? '公告資訊' : '待確認'}</span></div>
-              <p className="mt-2 text-sm leading-6 text-slate-400">{notice.summary}</p>
-              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-slate-800 pt-3 text-xs text-slate-500"><span>{notice.source} · {new Date(notice.publishedAt).toLocaleString('zh-TW')}</span><a href={notice.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 font-bold text-cyan-200 hover:text-cyan-100">查看原文 <ExternalLink className="h-3.5 w-3.5" /></a></div>
-            </article>)}
+      <main className="mx-auto max-w-7xl space-y-6 px-4 py-6 sm:px-6 lg:px-8">
+        <section className="grid gap-4 lg:grid-cols-[1.35fr_0.65fr]">
+          <div className="rounded-3xl border border-amber-500/30 bg-gradient-to-br from-amber-500/10 to-slate-900 p-5 sm:p-7">
+            <div className="flex items-center gap-2 text-amber-300"><ShieldAlert size={20} /><span className="font-semibold">官方公告狀態</span></div>
+            <h2 className="mt-4 text-2xl font-bold">{latestOfficialNotice.status === 'pending' ? '尚未取得可驗證公告' : latestOfficialNotice.title}</h2>
+            <p className="mt-3 leading-7 text-slate-300">{latestOfficialNotice.summary}</p>
+            <p className="mt-4 text-sm text-slate-400">資料來源：{latestOfficialNotice.source}</p>
+            <p className="mt-1 text-sm text-slate-400">最後更新：{latestOfficialNotice.publishedAt ? new Date(latestOfficialNotice.publishedAt).toLocaleString('zh-TW') : '暫無更新時間'}</p>
+            <a href={latestOfficialNotice.url || 'https://www.dgpa.gov.tw/typh/daily/nds.html'} target="_blank" rel="noreferrer" className="mt-5 inline-flex items-center gap-2 rounded-xl bg-amber-300 px-4 py-3 font-semibold text-slate-950">
+              查看人事行政總處原始公告 <ExternalLink size={16} />
+            </a>
+            <p className="mt-3 text-sm font-medium text-amber-200">注意：待確認不代表正常上班上課，請以地方政府正式公告為準。</p>
+          </div>
+
+          <div className="rounded-3xl border border-slate-800 bg-slate-900 p-5 sm:p-7">
+            <div className="flex items-center gap-2 text-cyan-300"><Cloud size={20} /><h2 className="text-lg font-semibold">官方天氣資料</h2></div>
+            <p className="mt-3 text-sm text-slate-400">{officialStatus}</p>
+            <p className="mt-4 text-3xl font-bold">{officialForecasts.length ? '已取得資料' : '暫無資料'}</p>
+            <p className="mt-2 text-sm leading-6 text-slate-400">天氣資料不等同停班停課決定；是否停止上班上課由主管機關公告。</p>
+            {officialForecasts.length > 0 && <div className="mt-4 space-y-2">{officialForecasts.slice(0, 3).map((forecast) => <div key={forecast.name} className="rounded-xl bg-slate-800/70 p-3"><div className="font-medium">{forecast.name}</div><div className="mt-1 text-sm text-slate-300">{forecast.weather || '天氣待確認'} · {forecast.minTemperature ?? '—'}–{forecast.maxTemperature ?? '—'}°C · 降雨 {forecast.rainProbability ?? '—'}%</div></div>)}</div>}
           </div>
         </section>
 
-        {adminMode && <section className="mt-6 rounded-[1.75rem] border border-violet-400/20 bg-slate-900/80 p-5 sm:p-6">
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-violet-300">Admin tools</p><h2 className="mt-1 text-xl font-black">管理員公告工具</h2>
-          <label className="mt-4 block text-sm font-semibold text-slate-300">公告內容</label>
-          <textarea value={adminAnnouncement} onChange={(event) => setAdminAnnouncement(event.target.value)} rows={3} className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 p-3 text-sm outline-none focus:border-violet-400" />
-          <button onClick={() => { const note = adminAnnouncement.trim(); if (!note) return; setNotices((prev) => [{ id: `admin-${Date.now()}`, title: '管理員公告', summary: note, source: 'HolidayPredictor 管理員', url: 'https://www.dgpa.gov.tw/typh/daily/nds.html', publishedAt: new Date().toISOString(), category: '行政', status: 'pending' }, ...prev]); setPushStatus('已更新管理員公告'); if ('Notification' in window && Notification.permission === 'granted') new Notification('HolidayPredictor｜管理員公告已更新', { body: note, tag: 'holiday-admin-override' }); }} className="mt-3 w-full rounded-xl bg-violet-400 px-4 py-3 font-bold text-slate-950 hover:bg-violet-300">發布管理員公告</button>
-        </section>}
+        <section className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5"><div className="text-sm text-slate-400">公告狀態</div><div className="mt-2 text-xl font-bold text-amber-300">待確認</div><div className="mt-1 text-xs text-slate-500">不會自動推定為正常上班</div></div>
+          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5"><div className="text-sm text-slate-400">資料來源</div><div className="mt-2 text-xl font-bold">官方公告</div><div className="mt-1 text-xs text-slate-500">人事行政總處／地方政府</div></div>
+          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5"><div className="text-sm text-slate-400">天氣預報</div><div className="mt-2 text-xl font-bold">{officialForecasts.length ? '已連線' : '待連線'}</div><div className="mt-1 text-xs text-slate-500">中央氣象署資料</div></div>
+          <div className="rounded-2xl border border-slate-800 bg-slate-900 p-5"><div className="text-sm text-slate-400">瀏覽器通知</div><div className="mt-2 text-xl font-bold">{pushEnabled ? '已啟用' : '未啟用'}</div><button onClick={openNotificationPermission} className="mt-2 rounded-lg border border-slate-700 px-3 py-2 text-sm hover:bg-slate-800">{pushEnabled ? '通知已設定' : '設定通知'}</button><p className="mt-2 text-xs text-slate-500">{pushStatus}</p></div>
+        </section>
 
-        <footer className="mt-8 border-t border-slate-800 pt-5 text-center text-xs leading-6 text-slate-500">HolidayPredictor · 官方公告以政府原始來源為準 · 風險分析僅供參考，不取代正式公告。</footer>
-      </div>
+        <section className="rounded-3xl border border-slate-800 bg-slate-900 p-5 sm:p-7">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:justify-between">
+            <div><h2 className="text-xl font-bold">全台縣市風險參考</h2><p className="mt-1 text-sm text-slate-400">下列風雨數值為示範情境，不是官方停班停課公告。</p></div>
+            <div className="flex flex-col gap-3 sm:flex-row">
+              <label className="text-sm text-slate-400">情境<select value={scenario} onChange={(e) => setScenario(e.target.value)} className="mt-1 block w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100">{scenarios.map((item) => <option key={item}>{item}</option>)}</select></label>
+              <label className="text-sm text-slate-400">地區<select value={region} onChange={(e) => setRegion(e.target.value)} className="mt-1 block w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-2 text-slate-100">{regions.map((item) => <option key={item}>{item}</option>)}</select></label>
+              <label className="text-sm text-slate-400">搜尋縣市<div className="mt-1 flex items-center gap-2 rounded-xl border border-slate-700 bg-slate-950 px-3"><Search size={16} /><input value={search} onChange={(e) => setSearch(e.target.value)} placeholder="例如新竹市" className="w-full bg-transparent py-2 outline-none" /></div></label>
+            </div>
+          </div>
+          <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {visibleCities.map((city) => <button key={city.name} onClick={() => setSelected(city.name)} className={`rounded-2xl border p-4 text-left transition ${selected === city.name ? 'border-cyan-400 bg-cyan-400/10' : 'border-slate-800 bg-slate-950/60 hover:border-slate-600'}`}>
+              <div className="flex items-center justify-between gap-2"><h3 className="font-semibold">{city.name}</h3><span className="rounded-full bg-amber-500/15 px-2 py-1 text-xs text-amber-200">待確認</span></div>
+              <div className="mt-3 grid grid-cols-3 gap-2 text-sm"><div><div className="text-slate-500">陣風</div><div className="mt-1 font-semibold">{city.gust} 級</div></div><div><div className="text-slate-500">風力</div><div className="mt-1 font-semibold">{city.wind} 級</div></div><div><div className="text-slate-500">降雨</div><div className="mt-1 font-semibold">{city.rain} mm</div></div></div>
+              <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-slate-800"><div className="h-full rounded-full bg-cyan-400" style={{width: `${Math.min(100, city.probability)}%`}} /></div><div className="mt-1 text-xs text-slate-500">示範風險指標 {city.probability}%（非官方機率）</div>
+            </button>)}
+          </div>
+        </section>
+
+        <section className="grid gap-4 lg:grid-cols-2">
+          <div className="rounded-3xl border border-slate-800 bg-slate-900 p-5 sm:p-7"><div className="flex items-center gap-2"><Bell size={20} className="text-cyan-300" /><h2 className="text-xl font-bold">官方公告與更新</h2></div><div className="mt-4 space-y-3">{notices.map((notice) => <article key={notice.id} className="rounded-2xl border border-slate-800 p-4"><div className="flex flex-wrap items-center justify-between gap-2"><h3 className="font-semibold">{notice.title}</h3><span className="rounded-full bg-amber-500/15 px-2 py-1 text-xs text-amber-200">{notice.status === 'holiday' ? '已公告停班停課' : notice.status === 'normal' ? '官方公告' : '待確認'}</span></div><p className="mt-2 text-sm leading-6 text-slate-300">{notice.summary}</p><div className="mt-2 text-xs text-slate-500">來源：{notice.source} · 更新：{notice.publishedAt ? new Date(notice.publishedAt).toLocaleString('zh-TW') : '時間未知'}</div><a className="mt-3 inline-flex items-center gap-2 text-sm text-cyan-300 underline" href={notice.url || 'https://www.dgpa.gov.tw/typh/daily/nds.html'} target="_blank" rel="noreferrer">查看原始公告 <ExternalLink size={14} /></a></article>)}</div></div>
+          <div className="rounded-3xl border border-slate-800 bg-slate-900 p-5 sm:p-7"><div className="flex items-center gap-2"><Wind size={20} className="text-cyan-300" /><h2 className="text-xl font-bold">查詢與使用說明</h2></div><p className="mt-3 leading-7 text-slate-300">本網站整理官方公告及天氣資訊作為參考。只有主管機關正式發布的停班停課公告，才能視為正式決定。</p><ul className="mt-4 list-disc space-y-2 pl-5 text-sm leading-6 text-slate-400"><li>若官方資料無法取得，狀態保持「待確認」。</li><li>公告頁會提供官方原始連結及可取得的更新時間。</li><li>風雨風險指標目前是示範資料，不應當成放假機率。</li></ul><div className="mt-5 flex flex-wrap gap-3"><a href="https://www.dgpa.gov.tw/typh/daily/nds.html" target="_blank" rel="noreferrer" className="rounded-xl border border-slate-700 px-4 py-3 text-sm hover:bg-slate-800">人事行政總處公告 <ExternalLink size={15} className="inline" /></a><a href="https://www.cwa.gov.tw/" target="_blank" rel="noreferrer" className="rounded-xl border border-slate-700 px-4 py-3 text-sm hover:bg-slate-800">中央氣象署 <ExternalLink size={15} className="inline" /></a></div></div>
+        </section>
+
+        {adminMode && <section className="rounded-3xl border border-violet-500/30 bg-violet-500/5 p-5 sm:p-7"><h2 className="text-xl font-bold">管理員公告設定</h2><p className="mt-2 text-sm text-slate-400">此設定只儲存在目前瀏覽器，不會發布成政府公告。</p><textarea value={adminAnnouncement} onChange={(e) => setAdminAnnouncement(e.target.value)} className="mt-3 min-h-24 w-full rounded-xl border border-slate-700 bg-slate-950 p-3" /><button onClick={() => setPushStatus('管理員備註已儲存於本機瀏覽器')} className="mt-3 rounded-xl bg-violet-400 px-4 py-2 font-semibold text-slate-950">儲存備註</button></section>}
+        {!adminMode && <section className="rounded-2xl border border-slate-800 bg-slate-900 p-5"><h2 className="font-semibold">管理員入口</h2><div className="mt-3 flex flex-col gap-3 sm:flex-row"><input type="password" value={adminPassword} onChange={(e) => setAdminPassword(e.target.value)} placeholder="輸入管理員密碼" className="rounded-xl border border-slate-700 bg-slate-950 px-3 py-2" /><button onClick={loginAsAdmin} className="rounded-xl border border-slate-700 px-4 py-2 hover:bg-slate-800">登入</button></div><p className="mt-2 text-xs text-slate-500">目前管理員登入為前端示範功能，正式環境請改用安全的伺服器端驗證。</p></section>}
+        <footer className="pb-8 text-center text-xs text-slate-500">HolidayPredictor · 資料未能驗證時不推定為正常上班上課</footer>
+      </main>
     </div>
   );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-				
-																																																																												t																																										t																																													
-																																																																																																																																																																																																						t																																																																																													t																																																																	t																																																																																																						
-																																																																	t																																																																																																																																																																																																																																																																																																																																																																																t																																																																																																																																																																						t																																																																																																						t																										t																																																																																																																																																																																											t																																																																																																										t																																																																																																					t																																																																																																																																					t																																																																																												t																																																																			t																																																																																								t																																																																																									t																																																																																																																																t																																																																																																t																														t																																																																														t																																																																																					t																																																																																																																																																												t																																																																																																																																																																																																			t																																								t																																																																													t																																																																						t																																																																																																												t																																																																																												t																																																														t																																																																																																t																																																																																													t																																					t																																																																																																					t																																																																		t																																																															t																																																																																																																												t																																																																									t																																																																																												t																																																																																			t																																																																t																																																						t																																																														t																																																																		t																																																															t																																																	t																																																					t																																																																					t																																																									t																																						t																																				t																																	t																																						t																											t																										t																																																							t																								t																				t																																								t																															t																							t																					t														t																				t																							t																t															t																								t																											t																														t																																	t																																						t																					t																t										t																																				t																																	t															t																					t																			t																			t																t										t																													t																t								t																t								t																							t													t								t											t															t									t															t												t								t								t												t								t														t									t											t															t								t														t										t								t									t							t								t								t								t								t							t																t								t								t								t								t								t								t								t								t								t								t								t																		t								t									t									t								t								t								t								t			t								t																	t																t									
-t																																																		
-t																																																																																								
-t																																		t																																																																															
-t																																																	
-t																																									
-t																																																													
-t																																								t																																								
-t																																			
-t																																																																
-t																																																								
-t																																											
-t																																														
-t																																																
-t																																		
-t																	t																		
-t																										t																	
-t																							
-t																			
-t										
-t																							
-t																	
-t																	
-t																t																																	
-t																		
-t																
-t								t															
-t									t																								
-t																		
-t																							
-t																		
-t																																			
-t																t															" 
-																t																														
-t														t																						
-t																																				
-t																t																		
-t																		
-t																			
-t											
-t																	t																																
-t																t																															
-t																			
-t															t																					
-t																																				
-t													t																	
-t																							
-t																																		
-t																				
-t																	
-t																
-t																	
-t																	
-t																	
-t															t																																									
-t																t																																	
-t																			
-t																	
-t																
-t																
-t																t																												
-t																						
-t															
-t																	
-t															
-t																								
-t																							
-t																					
-t															t																							
-t																t																							
-t										t																									
-t										t															t												
-t									
-t														t																					
-t																t																														
-t																
-t																						
-t																			
-t															t																	
-t																			
-t																
-t															
-t										t																						
-t										
-t								t														
-t										
-t															
-t															t									
-t								t														
-t								t																	
-t								t																				
-t								t										t																
-t								t																
-t										t														
-t								t									
-t										t											}
-																																				
