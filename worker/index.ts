@@ -31,7 +31,7 @@ async function fetchOfficialSuspension() {
   const globalNoNotice = /無停班停課訊息/.test(text);
   const rows = CITY_NAMES.map(city => {
     const escaped = city.replace(/[.*+?^${}()|[\]\\]/g,'\\$&');
-    const pattern = new RegExp(escaped + '\\s+(.{0,100}?)(?=' + CITY_NAMES.map(x=>x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|') + '|備註：|外島地區|中部地區|南部地區|東部地區|北部地區|$)');
+    const pattern = new RegExp(escaped + '\\s+([\\s\\S]{0,100}?)(?=' + CITY_NAMES.map(x=>x.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')).join('|') + '|備註：|外島地區|中部地區|南部地區|東部地區|北部地區|$)');
     const match = text.match(pattern);
     const detail = match?.[1]?.trim() ?? '';
     const isSuspended = /停止上班[、及與]?\s*停止上課|停止上班、停止上課/.test(detail);
