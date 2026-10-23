@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="zh-Hant"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f8e6b8"><title>連線象棋</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#faf6ee;color:#302319;font-family:system-ui,"Noto Sans TC",sans-serif}main{max-width:560px;margin:auto;padding:16px}h1{font-size:24px}section{background:#fff;border:1px solid #e2d6c2;border-radius:16px;padding:14px;margin:12px 0}.row{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}button,input{font:inherit;border:1px solid #cbb99e;border-radius:10px;padding:10px}button{background:#302319;color:white}input{width:120px;text-transform:uppercase}#board{width:100%;touch-action:manipulation}#msg{font-weight:700;min-height:28px}.hint{color:#786957;font-size:13px}svg{display:block;width:100%;height:auto}
+</style><main><h1>♟ 連線象棋</h1><section id="lobby"><b>線上對戰</b><div class="row"><button id="create">建立房間（紅方先行）</button></div><div class="row"><input id="room" maxlength="5" placeholder="5 碼房號"><button id="join">加入房間</button></div><div id="net" class="hint">使用 PeerJS 點對點連線，雙方都需連上網路。</div><hr><b>同機雙人</b><div class="row"><button id="local">開始本機對弈</button></div></section><section id="game" hidden><div id="msg"></div><div id="info" class="hint"></div><div id="board"></div><div class="row"><button id="resign">認輸</button><button id="again">再來一局</button><button id="leave">離開</button></div></section></main>
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script><script>
+const $=s=>document.querySelector(s), names={r:"車",n:"馬",b:"象",a:"士",k:"將",c:"砲",p:"卒",R:"俥",N:"傌",B:"相",A:"仕",K:"帥",C:"炮",P:"兵"};
+const initial=()=>("rnbakabnr"+"........."+".c.....c."+"p.p.p.p.p"+"........."+"........."+"P.P.P.P.P"+".C.....C."+"........."+"RNBAKABNR").split("");
+let b,turn="r",local=false,host=false,uid="",room="",peer,conn,selected=-1,ended=false;
+const red=p=>p>="A"&&p<="Z",inside=(r,c)=>r>=0&&r<10&&c>=0&&c<9;
+function moves(i){let p=b[i];if(!p||p===".")return[];let r=i/9|0,c=i%9,R=red(p),t=p.toLowerCase(),o=[],dirs=[[1,0],[-1,0],[0,1],[0,-1]];
+const add=(y,x)=>{if(inside(y,x)&& (b[y*9+x]==="."||red(b[y*9+x])!==R))o.push(y*9+x)};
+if(t==="r"||t==="c"){for(let[dy,dx]of dirs){let y=r+dy,x=c+dx,screen=false;while(inside(y,x)){let q=b[y*9+x];if(t==="r"){if(q===".")o.push(y*9+x);else{if(red(q)!==R)o.push(y*9+x);break}}else if(!screen){if(q===".")o.push(y*9+x);else screen=true}else if(q!=="."){if(red(q)!==R)o.push(y*9+x);break}y+=dy;x+=dx}}}
+else if(t==="n"){for(let[dy,dx]of [[-2,-1],[-2,1],[2,-1],[2,1],[-1,-2],[-1,2],[1,-2],[1,2]]){let ly=r+(Math.abs(dy)===2?Math.sign(dy):0),lx=c+(Math.abs(dx)===2?Math.sign(dx):0);if(b[ly*9+lx]===".")add(r+dy,c+dx)}}
+else if(t==="b"){for(let dy of[-2,2])for(let dx of[-2,2])if(inside(r+dy,c+dx)&&b[(r+dy/2)*9+c+dx/2]==="."&&(R?r+dy>=5:r+dy<=4))add(r+dy,c+dx)}
+else if(t==="a"){for(let dy of[-1,1])for(let dx of[-1,1])if(c+dx>=3&&c+dx<=5&&(R?r+dy>=7:r+dy<=2))add(r+dy,c+dx)}
+else if(t==="k"){for(let[dy,dx]of dirs)if(c+dx>=3&&c+dx<=5&&(R?r+dy>=7:r+dy<=2))add(r+dy,c+dx)}
+else if(t==="p"){let dy=R?-1:1;add(r+dy,c);if(R?r<=4:r>=5){add(r,c-1);add(r,c+1)}}return o}
+function side(){return local?"both":host?"r":"b"}
+function send(){if(!local&&conn?.open)conn.send({type:"state",b:b.join(""),turn,ended})}
+function receive(d){if(!d)return;if(d.type==="state"){b=d.b.split("");turn=d.turn;ended=d.ended;draw()}}
+function draw(){let g='<svg viewBox="0 0 460 510" aria-label="象棋棋盤"><rect x="4" y="4" width="452" height="502" rx="10" fill="#e8c98f"/><g stroke="#5a3d1e" stroke-width="1.5">';for(let r=0;r<10;r++)g+=`<line x1="30" y1="${30+r*50}" x2="430" y2="${30+r*50}"/>`;g+='<line x1="30" y1="30" x2="30" y2="480"/><line x1="430" y1="30" x2="430" y2="480"/>';for(let c=1;c<8;c++)g+=`<line x1="${30+c*50}" y1="30" x2="${30+c*50}" y2="230"/><line x1="${30+c*50}" y1="280" x2="${30+c*50}" y2="480"/>`;g+='</g><text x="130" y="263" font-size="24" fill="#5a3d1e">楚 河</text><text x="330" y="263" font-size="24" fill="#5a3d1e">漢 界</text>';
+for(let i=0;i<90;i++){let p=b[i];if(p===".")continue;let x=30+i%9*50,y=30+(i/9|0)*50,col=red(p)?"#c0392b":"#222";g+=`<circle cx="${x}" cy="${y}" r="22" fill="#f8e6b8" stroke="#5a3d1e" stroke-width="2"/><text x="${x}" y="${y+8}" text-anchor="middle" font-size="23" font-weight="bold" fill="${col}">${names[p]}</text>`}
+if(selected>=0){let x=30+selected%9*50,y=30+(selected/9|0)*50;g+=`<circle cx="${x}" cy="${y}" r="26" fill="none" stroke="#1684db" stroke-width="4"/>`;for(let j of moves(selected)){let xx=30+j%9*50,yy=30+(j/9|0)*50;g+=`<circle cx="${xx}" cy="${yy}" r="7" fill="#1684db"/>`}}
+for(let i=0;i<90;i++)g+=`<circle cx="${30+i%9*50}" cy="${30+(i/9|0)*50}" r="24" fill="transparent" data-i="${i}"/>`;$('#board').innerHTML=g+'</svg>';$('#msg').textContent=ended?'本局結束':local?'輪到'+(turn==="r"?"紅方":"黑方"):turn===side()?'輪到你（'+(turn==="r"?"紅方":"黑方")+'）':'等待對手落子…';$('#info').textContent=local?'同機雙人模式':'房號：'+room+'　分享房號邀請朋友';}
+$('#board').onclick=e=>{let el=e.target.closest('[data-i]');if(!el||ended||(!local&&turn!==side()))return;let i=+el.dataset.i;if(selected>=0&&moves(selected).includes(i)){b[i]=b[selected];b[selected]=".";selected=-1;turn=turn==="r"?"b":"r";send()}else if(b[i]!=="."&&red(b[i])===(turn==="r"))selected=i;else selected=-1;draw()};
+function start(l){local=l;host=false;ended=false;turn="r";b=initial();selected=-1;$('#lobby').hidden=true;$('#game').hidden=false;draw()}
+function closeNet(){try{conn?.close();peer?.destroy()}catch{}conn=null;peer=null}
+$('#local').onclick=()=>{closeNet();start(true)};
+$('#create').onclick=()=>{closeNet();room=Array.from({length:5},()=>"ABCDEFGHJKLMNPQRSTUVWXYZ23456789"[Math.random()*32|0]).join("");$('#room').value=room;host=true;local=false;ended=false;turn="r";b=initial();peer=new Peer("xiangqi-"+room);peer.on('open',()=>$('#net').textContent='房間已建立，房號 '+room+'；等待對手加入');peer.on('connection',c=>{conn=c;c.on('data',receive);c.on('open',send)});peer.on('error',()=>$('#net').textContent='建立失敗，請再試一次');$('#lobby').hidden=true;$('#game').hidden=false;draw()};
+$('#join').onclick=()=>{closeNet();room=$('#room').value.trim().toUpperCase();if(!/^[A-HJ-NP-Z2-9]{5}$/.test(room)){alert('請輸入 5 碼房號');return}host=false;local=false;peer=new Peer();peer.on('open',()=>{conn=peer.connect('xiangqi-'+room);conn.on('data',receive);conn.on('open',()=>$('#net').textContent='已連線')});peer.on('error',()=>alert('連線失敗，請確認房號與網路'));b=initial();turn="r";$('#lobby').hidden=true;$('#game').hidden=false;draw()};
+$('#resign').onclick=()=>{if(confirm('確定認輸？')){ended=true;turn=turn==="r"?"b":"r";send();draw()}};
+$('#again').onclick=()=>{ended=false;b=initial();turn="r";send();draw()};
+$('#leave').onclick=()=>{closeNet();$('#game').hidden=true;$('#lobby').hidden=false};
+</script>
