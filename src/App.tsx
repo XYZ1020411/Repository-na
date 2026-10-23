@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Bell, Cloud, CloudRain, ExternalLink, RefreshCw, Search, ShieldAlert, Wind } from 'lucide-react';
+import { Bell, CloudRain, ExternalLink, RefreshCw, Search, ShieldAlert, Wind } from 'lucide-react';
 import { citiesBase, regions, scenarios, scenarioData } from './data';
 import type { City } from './types';
 
@@ -32,9 +32,9 @@ const ANNOUNCEMENT_KEY = 'holiday-admin-notice';
 const fallbackNotices: OfficialNotice[] = [
   {
     id: 'f1',
-    title: '示範公告：中部地區可能因大雨影響停班停課',
-    summary: '依照示範情境，平台會在風雨警示升級時發出通知。',
-    source: '政府示範資料',
+    title: '官方停班停課公告待確認',
+    summary: '目前尚未取得可驗證的官方公告。這不代表正常上班上課，請查看官方原文及地方政府最新公告。',
+    source: '行政院人事行政總處（待確認）',
     url: 'https://www.dgpa.gov.tw/',
     publishedAt: new Date().toISOString(),
     category: '停班停課',
