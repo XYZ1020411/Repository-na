@@ -38,7 +38,7 @@ const fallbackNotices: OfficialNotice[] = [
     url: 'https://www.dgpa.gov.tw/',
     publishedAt: new Date().toISOString(),
     category: '停班停課',
-    status: 'holiday',
+    status: 'pending',
   },
 ];
 
